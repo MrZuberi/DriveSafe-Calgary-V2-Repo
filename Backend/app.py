@@ -144,7 +144,7 @@ def get_incidents(limit=None):
 
     # fetch fresh data from calgary api
     params = {
-        # "$order": "start_dt DESC", 
+        "$order": "start_dt DESC", 
         "$limit": 5000 if limit is None else max(limit, 1)
     }
     r = requests.get(INCIDENTS_URL, params=params, timeout=20)
