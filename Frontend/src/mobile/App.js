@@ -23,6 +23,66 @@ const CALGARY_BOUNDS = [
   [51.215, -113.859],
 ];
 
+// returns "No Details" if value is missing / empty / "No Data" / "Unknown" / "None"
+function orNA(value) {
+  if (value === null || value === undefined) return "No Details";
+  const s = String(value).trim();
+  if (s === "" || s.toLowerCase() === "no data" || s.toLowerCase() === "unknown" || s.toLowerCase() === "none") {
+    return "No Details";
+  }
+  return s;
+}
+
+// formats a date as time-only (e.g. "2:14 PM"). "No Details" if invalid.
+function formatTime(value) {
+  if (!value) return "No Details";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "No Details";
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+// formats a date as full date-time. "No Details" if invalid.
+function formatDateTime(value) {
+  if (!value) return "No Details";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "No Details";
+  return d.toLocaleString();
+}
+
+// reusable collapsible description block
+function DescriptionDropdown({ incident }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ margin: "0.5rem 0" }}>
+      <button
+        type="button"
+        onClick={function() { setOpen(!open); }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: '#004c8c',
+          fontWeight: 700,
+          fontSize: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4rem'
+        }}
+      >
+        Description {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <div style={{ marginTop: '0.75rem', paddingLeft: '0.75rem', borderLeft: '3px solid #dee2e6', lineHeight: '1.6' }}>
+          <p style={{ margin: "0 0 0.75rem 0" }}><b>Description:</b> {orNA(incident.description)}</p>
+          <p style={{ margin: "0 0 0.75rem 0" }}><b>Details:</b> {orNA(incident.details)}</p>
+          <p style={{ margin: "0 0 0.75rem 0" }}><b>Last updated:</b> {formatDateTime(incident.modified_dt)}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [incidents, setIncidents] = useState([]);
   const [selectedIncident, setSelectedIncident] = useState(null);
@@ -145,13 +205,10 @@ function App() {
     } else {
       let shouldInclude = false;
       
-      if (incident.incident_info && incident.incident_info.toLowerCase().includes(searchLower)) {
+      if (incident.roadway_name && incident.roadway_name.toLowerCase().includes(searchLower)) {
         shouldInclude = true;
       }
       if (incident.description && incident.description.toLowerCase().includes(searchLower)) {
-        shouldInclude = true;
-      }
-      if (incident.quadrant && incident.quadrant.toLowerCase().includes(searchLower)) {
         shouldInclude = true;
       }
       
@@ -241,13 +298,13 @@ function App() {
                         <Popup>
                           <div style={{ maxWidth: '280px', padding: '0.5rem' }}>
                             <b style={{ color: '#d64545', fontSize: '1rem', display: 'block', marginBottom: '0.5rem' }}>
-                              {incident.incident_info}
+                              {orNA(incident.roadway_name)}
                             </b>
                             <div style={{ margin: '0.5rem 0', fontSize: '0.9rem', lineHeight: '1.4' }}>
-                              {incident.description}
+                              {orNA(incident.description)}
                             </div>
                             <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '0.5rem' }}>
-                              {incident.start_dt ? new Date(incident.start_dt).toLocaleString() : ""}
+                              {formatTime(incident.start_dt)}
                             </div>
                           </div>
                         </Popup>
@@ -270,19 +327,17 @@ function App() {
                   </div>
                 ) : (
                   <div className="details">
-                    <h2>{selectedIncident.incident_info}</h2>
-                    <p style={{ marginBottom: "1.5rem", lineHeight: '1.6' }}>{selectedIncident.description}</p>
+                    <h2>{orNA(selectedIncident.roadway_name)}</h2>
+                    <p style={{ marginBottom: "1.5rem", lineHeight: '1.6' }}>{orNA(selectedIncident.description)}</p>
                     
                     <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: '10px', marginBottom: '1.5rem' }}>
                       <p style={{ margin: "0 0 0.75rem 0", lineHeight: '1.5' }}>
-                        <b>📅 When:</b> {selectedIncident.start_dt ? new Date(selectedIncident.start_dt).toLocaleString() : "—"}
+                        <b>📅 When:</b> {formatTime(selectedIncident.start_dt)}
                       </p>
                       <p style={{ margin: "0 0 0.75rem 0", lineHeight: '1.5' }}>
-                        <b>📍 Area:</b> {selectedIncident.quadrant || "—"}
+                        <b>🛣️ Lanes affected:</b> {orNA(selectedIncident.lanes_affected)}
                       </p>
-                      <p style={{ margin: "0", lineHeight: '1.5' }}>
-                        <b>🔄 Updated:</b> {selectedIncident.modified_dt ? new Date(selectedIncident.modified_dt).toLocaleString() : "—"}
-                      </p>
+                      <DescriptionDropdown incident={selectedIncident} />
                     </div>
 
                     <div className="section-title">📹 Nearest Traffic Cameras</div>
@@ -369,14 +424,14 @@ function App() {
                       >
                         <div className="item-header">
                           <div className="item-title" style={{ fontSize: '1.15rem', marginBottom: '0.5rem' }}>
-                            🚨 {incident.incident_info}
+                            🚨 {orNA(incident.roadway_name)}
                           </div>
                           <div className="badge time" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                            {incident.start_dt ? new Date(incident.start_dt).toLocaleTimeString() : ""}
+                            {formatTime(incident.start_dt)}
                           </div>
                         </div>
                         <div className="item-description" style={{ fontSize: '1rem', lineHeight: '1.6', marginBottom: '1rem' }}>
-                          {incident.description}
+                          {orNA(incident.description)}
                         </div>
                         <div style={{ 
                           marginTop: '1rem', 
@@ -388,8 +443,8 @@ function App() {
                           gap: '0.75rem',
                           lineHeight: '1.4'
                         }}>
-                          <span>📍 {incident.quadrant || "Unknown area"}</span>
-                          <span>🕐 Updated: {incident.modified_dt ? new Date(incident.modified_dt).toLocaleTimeString() : "—"}</span>
+                          <span>🛣️ {orNA(incident.lanes_affected)}</span>
+                          <span>🕐 Updated: {formatTime(incident.modified_dt)}</span>
                         </div>
                       </div>
                     );
@@ -404,24 +459,22 @@ function App() {
           <div className="modal" onClick={function() { setShowModal(null); }}>
             <div className="modal-card" onClick={function(e) { e.stopPropagation(); }} style={{ maxWidth: '1200px'}}>
               <div className="modal-header">
-                <div className="modal-title" style={{ fontSize: '1.3rem' }}>🚨 {showModal.incident.incident_info}</div>
+                <div className="modal-title" style={{ fontSize: '1.3rem' }}>🚨 {orNA(showModal.incident.roadway_name)}</div>
                 <button className="close-btn" onClick={function() { setShowModal(null); }} style={{ padding: '0.75rem 1.25rem' }}>✕</button>
               </div>
               <div className="modal-content">
                 <div className="inline-modal-content">
                   <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: '10px', marginBottom: '1.5rem' }}>
                     <p style={{ marginBottom: '1rem', lineHeight: '1.5' }}>
-                      <b>📍 Description:</b> {showModal.incident.description}
+                      <b>📍 Description:</b> {orNA(showModal.incident.description)}
                     </p>
                     <p style={{ marginBottom: '1rem', lineHeight: '1.5' }}>
-                      <b>📅 When:</b> {showModal.incident.start_dt ? new Date(showModal.incident.start_dt).toLocaleString() : "—"}
+                      <b>📅 When:</b> {formatTime(showModal.incident.start_dt)}
                     </p>
                     <p style={{ marginBottom: '1rem', lineHeight: '1.5' }}>
-                      <b>📍 Area:</b> {showModal.incident.quadrant || "—"}
+                      <b>🛣️ Lanes affected:</b> {orNA(showModal.incident.lanes_affected)}
                     </p>
-                    <p style={{ marginBottom: '0', lineHeight: '1.5' }}>
-                      <b>🔄 Updated:</b> {showModal.incident.modified_dt ? new Date(showModal.incident.modified_dt).toLocaleString() : "—"}
-                    </p>
+                    <DescriptionDropdown incident={showModal.incident} />
                   </div>
                   
                   {showModal.cameras.length > 0 && (

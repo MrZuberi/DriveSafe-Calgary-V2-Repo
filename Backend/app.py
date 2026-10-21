@@ -14,8 +14,18 @@ CORS(app) # allows frontend to talk to backend from different domains
 
 # gets api urls from environment variables (heroku config)
 CAMERAS_URL = os.getenv('CAMERAS_URL')
-INCIDENTS_URL = os.getenv('INCIDENTS_URL')
+# 511 Alberta events API (all of Alberta - we filter to Calgary below)
+INCIDENTS_URL = os.getenv(
+    'INCIDENTS_URL',
+    'https://511.alberta.ca/api/v2/get/event?key=709dc603417244168ea083a364cbf154&format=json'
+)
 
+
+# calgary bounding box (slightly padded so Airdrie/Okotoks/Cochrane edge events still appear)
+CALGARY_MIN_LAT = 50.80
+CALGARY_MAX_LAT = 51.25
+CALGARY_MIN_LON = -114.40
+CALGARY_MAX_LON = -113.75
 
 
 # stores data in memory
@@ -53,6 +63,27 @@ def calculate_distance_km(lat1, lon1, lat2, lon2): #calculating distances
     return earth_radius * c # returns distance in km
 
 
+# converts a unix timestamp (int) to an ISO-8601 string.
+# frontend does `new Date(value)` on this, so we return a string it parses reliably.
+def unix_to_iso(value):
+    try:
+        if value is None:
+            return None
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(value)))
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
+# returns True if lat/lon fall inside the padded Calgary box
+def is_in_calgary(lat, lon):
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (ValueError, TypeError):
+        return False
+    return (CALGARY_MIN_LAT <= lat <= CALGARY_MAX_LAT and
+            CALGARY_MIN_LON <= lon <= CALGARY_MAX_LON)
+
 
 # takes messy camera data from api and makes it clean and consistent
 def clean_camera_data(rec):
@@ -83,33 +114,30 @@ def clean_camera_data(rec):
         "coordinates": coords
     }
 
-# takes messy incident data from api and makes it clean
+# takes messy incident data from the 511 alberta API and makes it clean.
+# returns None if the record is outside the Calgary bounds (so it gets filtered out).
 def clean_incident_data(rec):
-    # get coordinates from api format or fallback fields
-    coords = None
-    if isinstance(rec.get("point"), dict) and rec["point"].get("coordinates"):
-        lon, lat = rec["point"]["coordinates"] # lon comes first in api
-        coords = {"lat": lat, "lon": lon}
-    else:
-        # fallback to lat/long fields if present
-        lat = rec.get("latitude")
-        lon = rec.get("longitude")
-        try:
-            lat = float(lat) if lat is not None else None
-            lon = float(lon) if lon is not None else None
-            if lat is not None and lon is not None:
-                coords = {"lat": lat, "lon": lon}
-        except Exception:
-            coords = None # ignore bad coordinate data
+    # the 511 alberta api uses "Latitude" / "Longitude" (capitalized)
+    lat = rec.get("Latitude")
+    lon = rec.get("Longitude")
 
-    # return clean format
+    # drop records with no coordinates or outside calgary
+    if not is_in_calgary(lat, lon):
+        return None
+
+    coords = {"lat": float(lat), "lon": float(lon)}
+
+    # clean format the rest of the app expects.
+    # note: new api has no "quadrant" field -> we omit it (UI no longer shows it).
     return {
-        "id": rec.get("id"),
-        "incident_info": rec.get("incident_info"),
-        "description": rec.get("description"),
-        "start_dt": rec.get("start_dt"),
-        "modified_dt": rec.get("modified_dt"),
-        "quadrant": rec.get("quadrant"),
+        "id": rec.get("ID"),
+        "roadway_name": rec.get("RoadwayName"),
+        "description": rec.get("Description"),
+        "details": rec.get("Details"),
+        "start_dt": unix_to_iso(rec.get("StartDate")),
+        "modified_dt": unix_to_iso(rec.get("LastUpdated")),
+        "lanes_affected": rec.get("LanesAffected"),
+        "severity": rec.get("Severity"),
         "coordinates": coords
     }
 
@@ -142,15 +170,21 @@ def get_incidents(limit=None):
         cached_data = incidents_cache["data"]
         return cached_data if limit is None else cached_data[:limit] # return requested amount
 
-    # fetch fresh data from calgary api
-    params = {
-        "$order": "start_dt DESC", 
-        "$limit": 5000 if limit is None else max(limit, 1)
-    }
-    r = requests.get(INCIDENTS_URL, params=params, timeout=20)
+    # fetch fresh data from 511 alberta events api
+    # (this api returns the full list; we filter to calgary afterward)
+    r = requests.get(INCIDENTS_URL, timeout=20)
     r.raise_for_status() # crash if api fails
     data = r.json()
-    incidents = [clean_incident_data(x) for x in data if x] # clean each incident
+
+    # clean each incident, dropping anything outside calgary or invalid
+    incidents = [clean_incident_data(x) for x in data if x]
+    incidents = [x for x in incidents if x]
+
+    # newest first (matches previous behavior)
+    incidents.sort(
+        key=lambda x: x.get("start_dt") or "",
+        reverse=True
+    )
     
     # only update cache for big requests to avoid constant cache updates
     if limit is None or limit >= 500:
@@ -235,7 +269,7 @@ def incident_with_cameras():
       - id (str) required
       - limit (int) default 4
     """
-    # get incident id from url
+    # get incident id from url (comes in as string, compare as string too)
     inc_id = request.args.get("id")
     if not inc_id:
         return jsonify({"error": "id is required"}), 400
@@ -247,9 +281,12 @@ def incident_with_cameras():
         limit = 4
     limit = max(1, min(limit, 20))
 
-    # find the specific incident by id
+    # find the specific incident by id (ids are ints in the 511 api, so compare loosely)
     incidents = get_incidents(limit=None)
-    incident = next((x for x in incidents if x.get("id") == inc_id), None)
+    incident = next(
+        (x for x in incidents if str(x.get("id")) == str(inc_id)),
+        None
+    )
     if not incident or not incident.get("coordinates"):
         return jsonify({"error": "incident not found or missing coordinates"}), 404
 

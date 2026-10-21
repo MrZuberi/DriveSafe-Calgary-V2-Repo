@@ -23,6 +23,66 @@ const CALGARY_BOUNDS = [
   [51.215, -113.859],
 ];
 
+// returns "No Details" if value is missing / empty / "No Data" / "Unknown" / "None"
+function orNA(value) {
+  if (value === null || value === undefined) return "No Details";
+  const s = String(value).trim();
+  if (s === "" || s.toLowerCase() === "no data" || s.toLowerCase() === "unknown" || s.toLowerCase() === "none") {
+    return "No Details";
+  }
+  return s;
+}
+
+// formats a date as time-only (e.g. "2:14 PM"). "No Details" if invalid.
+function formatTime(value) {
+  if (!value) return "No Details";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "No Details";
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+// formats a date as full date-time. "No Details" if invalid.
+function formatDateTime(value) {
+  if (!value) return "No Details";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "No Details";
+  return d.toLocaleString();
+}
+
+// reusable collapsible description block
+function DescriptionDropdown({ incident }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ margin: "0.3rem 0" }}>
+      <button
+        type="button"
+        onClick={function() { setOpen(!open); }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: '#004c8c',
+          fontWeight: 700,
+          fontSize: '0.95rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4rem'
+        }}
+      >
+        Description {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <div style={{ marginTop: '0.5rem', paddingLeft: '0.25rem', borderLeft: '3px solid #dee2e6' }}>
+          <p style={{ margin: "0 0 0.4rem 0" }}><b>Description:</b> {orNA(incident.description)}</p>
+          <p style={{ margin: "0 0 0.4rem 0" }}><b>Details:</b> {orNA(incident.details)}</p>
+          <p style={{ margin: "0 0 0.4rem 0" }}><b>Last updated:</b> {formatDateTime(incident.modified_dt)}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [incidents, setIncidents] = useState([]);
   const [selectedIncident, setSelectedIncident] = useState(null);
@@ -110,9 +170,8 @@ function App() {
       filteredIncidents.push(incident);
     } else {
       let shouldInclude = false;
-      if (incident.incident_info && incident.incident_info.toLowerCase().includes(searchLower)) shouldInclude = true;
+      if (incident.roadway_name && incident.roadway_name.toLowerCase().includes(searchLower)) shouldInclude = true;
       if (incident.description && incident.description.toLowerCase().includes(searchLower)) shouldInclude = true;
-      if (incident.quadrant && incident.quadrant.toLowerCase().includes(searchLower)) shouldInclude = true;
       if (shouldInclude) filteredIncidents.push(incident);
     }
   }
@@ -165,9 +224,9 @@ function App() {
                   return (
                     <Marker key={incident.id} position={[coords.lat, coords.lon]} eventHandlers={{ click: function() { handleSelectIncident(incident); } }}>
                       <Popup>
-                        <b>{incident.incident_info}</b><br />
-                        {incident.description}<br />
-                        {incident.start_dt ? new Date(incident.start_dt).toLocaleString() : ""}
+                        <b>{orNA(incident.roadway_name)}</b><br />
+                        {orNA(incident.description)}<br />
+                        {formatTime(incident.start_dt)}
                       </Popup>
                     </Marker>
                   );
@@ -183,11 +242,11 @@ function App() {
                 </div>
               ) : (
                 <div className="details" style={{ overflow: "visible", lineHeight: "1.2rem" }}>
-                  <h2 style={{ fontSize: "1.3rem", fontWeight: "700", marginBottom: "0.3rem" }}>{selectedIncident.incident_info}</h2>
-                  <p style={{ fontSize: "0.95rem", margin: "0 0 0.3rem 0" }}>{selectedIncident.description}</p>
-                  <p style={{ margin: "0 0 0.3rem 0" }}><b>When:</b> {selectedIncident.start_dt ? new Date(selectedIncident.start_dt).toLocaleString() : "—"}</p>
-                  <p style={{ margin: "0 0 0.3rem 0" }}><b>Quadrant:</b> {selectedIncident.quadrant || "—"}</p>
-                  <p style={{ margin: "0 0 0.3rem 0" }}><b>Last updated:</b> {selectedIncident.modified_dt ? new Date(selectedIncident.modified_dt).toLocaleString() : "—"}</p>
+                  <h2 style={{ fontSize: "1.3rem", fontWeight: "700", marginBottom: "0.3rem" }}>{orNA(selectedIncident.roadway_name)}</h2>
+                  <p style={{ fontSize: "0.95rem", margin: "0 0 0.3rem 0" }}>{orNA(selectedIncident.description)}</p>
+                  <p style={{ margin: "0 0 0.3rem 0" }}><b>When:</b> {formatTime(selectedIncident.start_dt)}</p>
+                  <p style={{ margin: "0 0 0.3rem 0" }}><b>Lanes affected:</b> {orNA(selectedIncident.lanes_affected)}</p>
+                  <DescriptionDropdown incident={selectedIncident} />
                   <div className="section-title" style={{ marginBottom: "0.25rem" }}>Closest traffic cameras:</div>
                   <p style={{ textAlign: "center", fontSize: "0.75rem", color: "gray", margin: "0.1rem 0 0.25rem 0" }}>Click on images to enlarge!</p>
                   <div className="cam-grid" style={{ gap: "0.25rem" }}>
@@ -223,12 +282,12 @@ function App() {
                 return (
                   <div key={incident.id} className="item" onClick={function() { handlePickFromList(incident); }}>
                     <div className="item-header">
-                      <div className="item-title">{incident.incident_info}</div>
+                      <div className="item-title">{orNA(incident.roadway_name)}</div>
                       <div className="badge" style={{ background: "red", color: "white" }}>
-                        {incident.start_dt ? new Date(incident.start_dt).toLocaleTimeString() : ""}
+                        {formatTime(incident.start_dt)}
                       </div>
                     </div>
-                    <div className="item-description">{incident.description}</div>
+                    <div className="item-description">{orNA(incident.description)}</div>
                   </div>
                 );
               })}
@@ -241,14 +300,14 @@ function App() {
         <div className="modal" onClick={function() { setShowModal(null); }}>
           <div className="modal-card" onClick={function(e) { e.stopPropagation(); }}>
             <div className="modal-header">
-              <div className="modal-title">{showModal.incident.incident_info}</div>
+              <div className="modal-title">{orNA(showModal.incident.roadway_name)}</div>
               <button className="close-btn" onClick={function() { setShowModal(null); }}>Close</button>
             </div>
             <div className="inline-modal-content">
-              <p><b>Description:</b> {showModal.incident.description}</p>
-              <p><b>When:</b> {showModal.incident.start_dt ? new Date(showModal.incident.start_dt).toLocaleString() : "—"}</p>
-              <p><b>Quadrant:</b> {showModal.incident.quadrant || "—"}</p>
-              <p><b>Last updated:</b> {showModal.incident.modified_dt ? new Date(showModal.incident.modified_dt).toLocaleString() : "—"}</p>
+              <p><b>Description:</b> {orNA(showModal.incident.description)}</p>
+              <p><b>When:</b> {formatTime(showModal.incident.start_dt)}</p>
+              <p><b>Lanes affected:</b> {orNA(showModal.incident.lanes_affected)}</p>
+              <DescriptionDropdown incident={showModal.incident} />
               <div className="section-title"><p><b>Closest traffic cameras:</b></p></div>
               <p style={{ textAlign: "center", fontSize: "0.8rem", color: "gray", margin: "0.25rem 0" }}>Click on images to enlarge!</p>
             </div>
