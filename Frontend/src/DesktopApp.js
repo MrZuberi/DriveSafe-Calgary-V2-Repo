@@ -57,6 +57,24 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
     m.on("load", () => {
       m.resize();
       
+      // 1. CUSTOMIZE MAP COLORS
+      // Background Land
+      if (m.getLayer("background")) {
+        m.setPaintProperty("background", "background-color", "#e8f0f2");
+      }
+      // Water
+      if (m.getLayer("water")) {
+        m.setPaintProperty("water", "fill-color", "#85c9d9");
+      }
+      // Parks & Greenspaces
+      if (m.getLayer("landcover_grass")) {
+        m.setPaintProperty("landcover_grass", "fill-color", "#bce3c3");
+      }
+      if (m.getLayer("park")) {
+        m.setPaintProperty("park", "fill-color", "#bce3c3");
+      }
+      
+      // 2. ADD 3D BUILDINGS
       if (!m.getLayer("3d-buildings")) {
         try {
           const sources = m.getStyle().sources;
@@ -151,12 +169,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       map.current.stop(); 
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 16.5, 
-        pitch: 75, // <--- MAXED OUT 3D TILT
-        bearing: -20, 
-        speed: 0.8, 
-        curve: 1.2, 
-        essential: true,
+        zoom: 16.5, pitch: 75, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
       });
     }
   }, [selectedIncident]);

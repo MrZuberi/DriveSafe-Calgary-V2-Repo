@@ -72,9 +72,9 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
                 "fill-extrusion-color": [
                   "step",
                   ["coalesce", ["get", "render_height"], 10],
-                  "#FFD1D1", 
-                  15, "#85B8F0", 
-                  50, "#B5D8FF"  
+                  "#efe6d5", // 0-15m: Warm Cream
+                  15, "#e73213", // 15-50m: Vibrant Orange-Red (Mid-rise)
+                  50, "#9dbeb7"  // 50m+: Muted Teal (Skyscrapers)
                 ],
                 "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
                 "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
@@ -150,12 +150,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       map.current.stop(); 
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 16.5, 
-        pitch: 75, // <--- HEAVY 3D TILT ON CLICK
-        bearing: -20, 
-        speed: 0.8, 
-        curve: 1.2, 
-        essential: true,
+        zoom: 16.5, pitch: 60, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
       });
     }
   }, [selectedIncident]);
