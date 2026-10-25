@@ -5,7 +5,6 @@ import './mobiles.css';
 import driveGif from "./drive.gif";
 import image1 from "./image1.jpg"; 
 
-// Use the global maplibregl object loaded via CDN in index.html
 const maplibregl = window.maplibregl;
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://drivesafecalgary-13a17c07f5d1.herokuapp.com";
@@ -46,10 +45,10 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       container: mapContainer.current,
       style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
       center: CALGARY_CENTER,
-      zoom: 14,
-      pitch: 60,
-      bearing: -20,
-      maxBounds: [[-114.316, 50.842], [-113.859, 51.215]],
+      zoom: 9,
+      pitch: 45, // A nice 3D tilt
+      bearing: 0,
+      // maxBounds REMOVED so you can freely pan and zoom out
     });
     map.current = m;
 
@@ -96,8 +95,15 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
     markers.current.forEach((mk) => mk.remove());
     markers.current = [];
 
+    const bounds = new maplibregl.LngLatBounds();
+    let hasPoints = false;
+
     incidents.forEach((incident) => {
       if (!incident.coordinates) return;
+      hasPoints = true;
+      
+      bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
+
       const el = document.createElement("div");
       Object.assign(el.style, {
         width: "20px", height: "20px", backgroundColor: "#d64545",
@@ -111,13 +117,30 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
         .addTo(map.current);
       markers.current.push(marker);
     });
+
+    if (hasPoints && !bounds.isEmpty()) {
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      
+      // Expand by ~5km so it doesn't hug the dots too tightly
+      const expandedBounds = new maplibregl.LngLatBounds(
+        [sw.lng - 0.05, sw.lat - 0.05], 
+        [ne.lng + 0.05, ne.lat + 0.05]  
+      );
+
+      map.current.fitBounds(expandedBounds, {
+        padding: { top: 50, bottom: 50, left: 50, right: 50 },
+        pitch: 45,
+        maxZoom: 9 // Forces it to stay zoomed out to the city level
+      });
+    }
   }, [incidents]);
 
   useEffect(() => {
     if (map.current && selectedIncident?.coordinates) {
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 16.5, pitch: 65, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
+        zoom: 16.5, pitch: 60, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
       });
     }
   }, [selectedIncident]);
