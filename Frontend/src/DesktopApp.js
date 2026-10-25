@@ -36,6 +36,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
   const map = useRef(null);
   const markers = useRef([]);
   const onSelectRef = useRef(onSelectIncident);
+  const hasFitBounds = useRef(false); // <--- THE FIX: Track if we already zoomed out initially
   onSelectRef.current = onSelectIncident;
 
   useEffect(() => {
@@ -46,9 +47,8 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
       center: CALGARY_CENTER,
       zoom: 9,
-      pitch: 45, // A nice 3D tilt
+      pitch: 45, 
       bearing: 0,
-      // maxBounds REMOVED so you can freely pan and zoom out
     });
     map.current = m;
 
@@ -110,7 +110,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
         borderRadius: "50%", border: "3px solid white",
         boxShadow: "0 0 10px rgba(0,0,0,0.5)", cursor: "pointer",
       });
-      el.addEventListener("click", () => onSelectRef.current(incident));
+      el.addEventListener("click", () => onSelectRef.current({ ...incident }));
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([incident.coordinates.lon, incident.coordinates.lat])
@@ -118,11 +118,11 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       markers.current.push(marker);
     });
 
-    if (hasPoints && !bounds.isEmpty()) {
+    // THE FIX: Only run fitBounds once, on the very first load
+    if (!hasFitBounds.current && hasPoints && !bounds.isEmpty()) {
       const ne = bounds.getNorthEast();
       const sw = bounds.getSouthWest();
       
-      // Expand by ~5km so it doesn't hug the dots too tightly
       const expandedBounds = new maplibregl.LngLatBounds(
         [sw.lng - 0.05, sw.lat - 0.05], 
         [ne.lng + 0.05, ne.lat + 0.05]  
@@ -131,13 +131,16 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       map.current.fitBounds(expandedBounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
         pitch: 45,
-        maxZoom: 9 // Forces it to stay zoomed out to the city level
+        maxZoom: 9 
       });
+
+      hasFitBounds.current = true; // Mark it as done so it never auto-zooms again
     }
   }, [incidents]);
 
   useEffect(() => {
     if (map.current && selectedIncident?.coordinates) {
+      map.current.stop(); 
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
         zoom: 16.5, pitch: 60, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
@@ -145,7 +148,51 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
     }
   }, [selectedIncident]);
 
-  return <div ref={mapContainer} style={{ width: "100%", height: "500px", position: "relative", zIndex: 10 }} />;
+  const handleMake2D = () => {
+    if (map.current) {
+      map.current.stop(); 
+      map.current.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+    }
+  };
+
+  const handleResetView = () => {
+    if (map.current && incidents.length > 0) {
+      map.current.stop(); 
+      
+      const bounds = new maplibregl.LngLatBounds();
+      incidents.forEach((incident) => {
+        if (incident.coordinates) bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
+      });
+      
+      if (!bounds.isEmpty()) {
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
+        const expandedBounds = new maplibregl.LngLatBounds(
+          [sw.lng - 0.05, sw.lat - 0.05], 
+          [ne.lng + 0.05, ne.lat + 0.05]  
+        );
+
+        map.current.fitBounds(expandedBounds, {
+          padding: { top: 50, bottom: 50, left: 50, right: 50 },
+          pitch: 45,
+          maxZoom: 9,
+          duration: 1000
+        });
+      }
+    }
+  };
+
+  const btnStyle = { background: "white", padding: "8px 12px", borderRadius: "6px", border: "1px solid #ccc", cursor: "pointer", fontWeight: "600", color: "#333", boxShadow: "0 2px 4px rgba(0,0,0,0.2)", fontSize: "14px", zIndex: 30 };
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div style={{ position: "absolute", top: "10px", right: "10px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 50 }}>
+        <button onClick={handleMake2D} style={btnStyle}>Make 2D</button>
+        <button onClick={handleResetView} style={btnStyle}>Reset View</button>
+      </div>
+      <div ref={mapContainer} style={{ width: "100%", height: "500px" }} />
+    </div>
+  );
 }
 
 function DescriptionDropdown({ incident }) {
@@ -212,15 +259,15 @@ function App() {
     <div style={{ backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundAttachment: "fixed", minHeight: "100vh", backgroundPosition: "center center", display: "flex" }}>
       <div className="header-left">
         <img src={driveGif} alt="Drive Animation" className="header-gif" />
-        <div><h1 style={{ fontSize: '32px' }}>DriveSafe Calgary</h1><h2 style={{ fontSize: '16px' }}>Calgary Live Traffic Incidents</h2></div>
+        <div><h1 style={{ fontSize: '32px' }}>DriveSafe Calgary</h1><h2 style={{ fontSize: '16px' }}>Live Traffic Incidents</h2></div>
       </div>
       <div className="main-content">
         <div className="container" style={{ paddingBottom: "6rem" }}>
           <div className="grid-2">
             <div className="card" style={{ padding: 0, minHeight: "520px", display: "flex", flexDirection: "column" }}>
               <div style={{ padding: '0.8rem', background: '#f5f6f7', borderBottom: '1px solid #dee2e6', flexShrink: 0 }}>
-                <div style={{ fontWeight: 600, color: '#004c8c', fontSize: '1rem' }}>🗺️ Calgary Traffic Map (3D)</div>
-                <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '0.3rem' }}>Zoom and rotate the map. Tap any red marker to fly to the location.</div>
+                <div style={{ fontWeight: 600, color: '#004c8c', fontSize: '1rem' }}>🗺️ Calgary Traffic Map</div>
+                <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '0.3rem' }}>Tap any red marker to fly to the location!</div>
               </div>
               <div style={{ flex: 1, position: 'relative' }}><Map3D incidents={incidents} selectedIncident={selectedIncident} onSelectIncident={handleSelectIncident} /></div>
             </div>
