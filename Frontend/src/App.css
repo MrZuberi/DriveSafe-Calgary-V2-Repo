@@ -593,3 +593,8 @@ html, body, #root {
     transform: scaleX(1); 
   }
 }
+.maplibregl-map {
+  border-radius: 0 0 12px 12px;
+  height: 100% !important;
+  width: 100% !important;
+}

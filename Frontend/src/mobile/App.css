@@ -981,3 +981,9 @@ body {
 .modal-header {
   padding: 1.75rem 2rem;
 }
+
+.maplibregl-map {
+  border-radius: 12px;
+  height: 100% !important;
+  width: 100% !important;
+}
