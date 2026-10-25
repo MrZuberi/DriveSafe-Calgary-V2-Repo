@@ -35,7 +35,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
   const map = useRef(null);
   const markers = useRef([]);
   const onSelectRef = useRef(onSelectIncident);
-  const hasFitBounds = useRef(false); // <--- THE FIX
+  const hasFitBounds = useRef(false); 
   onSelectRef.current = onSelectIncident;
 
   useEffect(() => {
@@ -274,8 +274,8 @@ function App() {
             <div className="grid-2">
               <div className="card" style={{ padding: 0, display: "flex", flexDirection: "column" }}>
                 <div style={{ padding: '1.5rem', background: '#f5f6f7', borderBottom: '1px solid #dee2e6', flexShrink: 0 }}>
-                  <div style={{ fontWeight: 600, color: '#004c8c', fontSize: '1.1rem' }}>🗺️ Calgary Traffic Map (3D)</div>
-                  <div style={{ fontSize: '0.9rem', color: '#6c757d', marginTop: '0.5rem' }}>Tap any marker to view incident details</div>
+                  <div style={{ fontWeight: 600, color: '#004c8c', fontSize: '1.1rem' }}>🗺️ Calgary Traffic Map</div>
+                  <div style={{ fontSize: '0.9rem', color: '#6c757d', marginTop: '0.5rem' }}>Tap any red marker to fly to the location!</div>
                 </div>
                 <div style={{ flex: 1, position: "relative" }}>
                   <Map3D incidents={incidents} selectedIncident={selectedIncident} onSelectIncident={handleSelectIncident} />
