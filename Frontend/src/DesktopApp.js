@@ -70,7 +70,6 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
               type: "fill-extrusion",
               minzoom: 13,
               paint: {
-                // APRICOT SKY PALETTE (with darker mid-tone and Cotton Candy Pink)
                 "fill-extrusion-color": [
                   "step",
                   ["coalesce", ["get", "render_height"], 10],
@@ -152,7 +151,12 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       map.current.stop(); 
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 16.5, pitch: 60, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
+        zoom: 16.5, 
+        pitch: 75, // <--- MAXED OUT 3D TILT
+        bearing: -20, 
+        speed: 0.8, 
+        curve: 1.2, 
+        essential: true,
       });
     }
   }, [selectedIncident]);
