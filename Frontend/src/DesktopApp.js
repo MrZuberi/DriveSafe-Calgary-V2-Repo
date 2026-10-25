@@ -47,7 +47,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: CALGARY_CENTER,
       zoom: 9,
-      pitch: 45, // Reverted to the subtle tilt
+      pitch: 45, 
       bearing: 0,
     });
     map.current = m;
@@ -70,10 +70,17 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
               type: "fill-extrusion",
               minzoom: 13,
               paint: {
-                "fill-extrusion-color": "#cccccc", 
+                // APRICOT SKY PALETTE (with darker mid-tone and Cotton Candy Pink)
+                "fill-extrusion-color": [
+                  "step",
+                  ["coalesce", ["get", "render_height"], 10],
+                  "#FFD1D1", // 0-15m: Cotton Candy Pink
+                  15, "#85B8F0", // 15-50m: Slightly darker mid-blue
+                  50, "#B5D8FF"  // 50m+: Azure Sky
+                ],
                 "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
                 "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-                "fill-extrusion-opacity": 0.85,
+                "fill-extrusion-opacity": 0.95,
               },
             });
           }
@@ -125,7 +132,6 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       const ne = bounds.getNorthEast();
       const sw = bounds.getSouthWest();
       
-      // Expand by ~5km so it doesn't hug the dots too tightly
       const expandedBounds = new maplibregl.LngLatBounds(
         [sw.lng - 0.05, sw.lat - 0.05], 
         [ne.lng + 0.05, ne.lat + 0.05]  
@@ -133,7 +139,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
       map.current.fitBounds(expandedBounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
-        pitch: 45, // Subtle tilt
+        pitch: 45,
         maxZoom: 9 
       });
 
@@ -177,7 +183,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
         map.current.fitBounds(expandedBounds, {
           padding: { top: 50, bottom: 50, left: 50, right: 50 },
-          pitch: 45, // EXACT SAME AS BEFORE
+          pitch: 45,
           maxZoom: 9,
           duration: 1000
         });

@@ -45,7 +45,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       container: mapContainer.current,
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: CALGARY_CENTER,
-      zoom: 9, 
+      zoom: 9,
       pitch: 45, 
       bearing: 0,
     });
@@ -69,10 +69,17 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
               type: "fill-extrusion",
               minzoom: 13,
               paint: {
-                "fill-extrusion-color": "#cccccc", 
+                // APRICOT SKY PALETTE (with darker mid-tone and Cotton Candy Pink)
+                "fill-extrusion-color": [
+                  "step",
+                  ["coalesce", ["get", "render_height"], 10],
+                  "#FFD1D1", // 0-15m: Cotton Candy Pink
+                  15, "#85B8F0", // 15-50m: Slightly darker mid-blue
+                  50, "#B5D8FF"  // 50m+: Azure Sky
+                ],
                 "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
                 "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-                "fill-extrusion-opacity": 0.85,
+                "fill-extrusion-opacity": 0.95,
               },
             });
           }
@@ -131,7 +138,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
       map.current.fitBounds(expandedBounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
-        pitch: 45, 
+        pitch: 45,
         maxZoom: 9 
       });
 
