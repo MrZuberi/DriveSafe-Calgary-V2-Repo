@@ -36,7 +36,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
   const map = useRef(null);
   const markers = useRef([]);
   const onSelectRef = useRef(onSelectIncident);
-  const hasFitBounds = useRef(false); // <--- THE FIX: Track if we already zoomed out initially
+  const hasFitBounds = useRef(false); 
   onSelectRef.current = onSelectIncident;
 
   useEffect(() => {
@@ -44,10 +44,10 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      style: "https://tiles.openfreemap.org/styles/liberty",
       center: CALGARY_CENTER,
       zoom: 9,
-      pitch: 45, 
+      pitch: 45, // Reverted to the subtle tilt
       bearing: 0,
     });
     map.current = m;
@@ -56,31 +56,34 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
     m.on("load", () => {
       m.resize();
-      const sources = m.getStyle().sources;
-      const vectorSource = Object.keys(sources).find((k) => sources[k].type === "vector");
       
-      if (vectorSource && !m.getLayer("3d-buildings")) {
+      if (!m.getLayer("3d-buildings")) {
         try {
-          m.addLayer({
-            id: "3d-buildings",
-            source: vectorSource,
-            "source-layer": "building",
-            type: "fill-extrusion",
-            minzoom: 13,
-            paint: {
-              "fill-extrusion-color": "#cccccc",
-              "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
-              "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-              "fill-extrusion-opacity": 0.85,
-            },
-          });
+          const sources = m.getStyle().sources;
+          const vectorSource = Object.keys(sources).find((k) => sources[k].type === "vector");
+          
+          if (vectorSource) {
+            m.addLayer({
+              id: "3d-buildings",
+              source: vectorSource,
+              "source-layer": "building",
+              type: "fill-extrusion",
+              minzoom: 13,
+              paint: {
+                "fill-extrusion-color": "#cccccc", 
+                "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
+                "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+                "fill-extrusion-opacity": 0.85,
+              },
+            });
+          }
         } catch (e) {
           console.warn("3D buildings layer failed:", e);
         }
       }
     });
 
-    m.on("error", (e) => console.error("Map error:", e.error || e));
+    m.on("error", (e) => console.warn("Map error:", e.error || e));
 
     return () => {
       markers.current.forEach((mk) => mk.remove());
@@ -118,11 +121,11 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       markers.current.push(marker);
     });
 
-    // THE FIX: Only run fitBounds once, on the very first load
     if (!hasFitBounds.current && hasPoints && !bounds.isEmpty()) {
       const ne = bounds.getNorthEast();
       const sw = bounds.getSouthWest();
       
+      // Expand by ~5km so it doesn't hug the dots too tightly
       const expandedBounds = new maplibregl.LngLatBounds(
         [sw.lng - 0.05, sw.lat - 0.05], 
         [ne.lng + 0.05, ne.lat + 0.05]  
@@ -130,11 +133,11 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
       map.current.fitBounds(expandedBounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
-        pitch: 45,
+        pitch: 45, // Subtle tilt
         maxZoom: 9 
       });
 
-      hasFitBounds.current = true; // Mark it as done so it never auto-zooms again
+      hasFitBounds.current = true; 
     }
   }, [incidents]);
 
@@ -174,7 +177,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
         map.current.fitBounds(expandedBounds, {
           padding: { top: 50, bottom: 50, left: 50, right: 50 },
-          pitch: 45,
+          pitch: 45, // EXACT SAME AS BEFORE
           maxZoom: 9,
           duration: 1000
         });

@@ -43,11 +43,11 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      style: "https://tiles.openfreemap.org/styles/liberty",
       center: CALGARY_CENTER,
-      zoom: 9,
-      pitch: 45, 
-      bearing: 0,
+      zoom: 13, 
+      pitch: 65, 
+      bearing: -20, 
     });
     map.current = m;
 
@@ -55,31 +55,34 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
 
     m.on("load", () => {
       m.resize();
-      const sources = m.getStyle().sources;
-      const vectorSource = Object.keys(sources).find((k) => sources[k].type === "vector");
       
-      if (vectorSource && !m.getLayer("3d-buildings")) {
+      if (!m.getLayer("3d-buildings")) {
         try {
-          m.addLayer({
-            id: "3d-buildings",
-            source: vectorSource,
-            "source-layer": "building",
-            type: "fill-extrusion",
-            minzoom: 13,
-            paint: {
-              "fill-extrusion-color": "#cccccc",
-              "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
-              "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-              "fill-extrusion-opacity": 0.85,
-            },
-          });
+          const sources = m.getStyle().sources;
+          const vectorSource = Object.keys(sources).find((k) => sources[k].type === "vector");
+          
+          if (vectorSource) {
+            m.addLayer({
+              id: "3d-buildings",
+              source: vectorSource,
+              "source-layer": "building",
+              type: "fill-extrusion",
+              minzoom: 13,
+              paint: {
+                "fill-extrusion-color": "#cccccc", 
+                "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
+                "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+                "fill-extrusion-opacity": 0.85,
+              },
+            });
+          }
         } catch (e) {
           console.warn("3D buildings layer failed:", e);
         }
       }
     });
 
-    m.on("error", (e) => console.error("Map error:", e.error || e));
+    m.on("error", (e) => console.warn("Map error:", e.error || e));
 
     return () => {
       markers.current.forEach((mk) => mk.remove());
@@ -121,15 +124,14 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       const ne = bounds.getNorthEast();
       const sw = bounds.getSouthWest();
       
-      const expandedBounds = new maplibregl.LngLatBounds(
-        [sw.lng - 0.05, sw.lat - 0.05], 
-        [ne.lng + 0.05, ne.lat + 0.05]  
-      );
+      const centerLon = (ne.lng + sw.lng) / 2;
+      const centerLat = (ne.lat + sw.lat) / 2;
 
-      map.current.fitBounds(expandedBounds, {
-        padding: { top: 50, bottom: 50, left: 50, right: 50 },
-        pitch: 45,
-        maxZoom: 9 
+      map.current.flyTo({
+        center: [centerLon, centerLat],
+        zoom: 12.5, 
+        pitch: 60, 
+        duration: 1000
       });
 
       hasFitBounds.current = true; 
@@ -141,7 +143,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       map.current.stop(); 
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 16.5, pitch: 60, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
+        zoom: 16.5, pitch: 70, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
       });
     }
   }, [selectedIncident]);
@@ -165,15 +167,14 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       if (!bounds.isEmpty()) {
         const ne = bounds.getNorthEast();
         const sw = bounds.getSouthWest();
-        const expandedBounds = new maplibregl.LngLatBounds(
-          [sw.lng - 0.05, sw.lat - 0.05], 
-          [ne.lng + 0.05, ne.lat + 0.05]  
-        );
+        const centerLon = (ne.lng + sw.lng) / 2;
+        const centerLat = (ne.lat + sw.lat) / 2;
 
-        map.current.fitBounds(expandedBounds, {
-          padding: { top: 50, bottom: 50, left: 50, right: 50 },
-          pitch: 45,
-          maxZoom: 9,
+        map.current.flyTo({
+          center: [centerLon, centerLat],
+          zoom: 12.5, 
+          pitch: 60,
+          bearing: -20,
           duration: 1000
         });
       }
