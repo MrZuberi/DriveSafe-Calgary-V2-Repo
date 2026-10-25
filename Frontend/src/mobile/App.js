@@ -45,9 +45,9 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       container: mapContainer.current,
       style: "https://tiles.openfreemap.org/styles/liberty",
       center: CALGARY_CENTER,
-      zoom: 13, 
-      pitch: 65, 
-      bearing: -20, 
+      zoom: 9, 
+      pitch: 45, 
+      bearing: 0,
     });
     map.current = m;
 
@@ -124,14 +124,15 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       const ne = bounds.getNorthEast();
       const sw = bounds.getSouthWest();
       
-      const centerLon = (ne.lng + sw.lng) / 2;
-      const centerLat = (ne.lat + sw.lat) / 2;
+      const expandedBounds = new maplibregl.LngLatBounds(
+        [sw.lng - 0.05, sw.lat - 0.05], 
+        [ne.lng + 0.05, ne.lat + 0.05]  
+      );
 
-      map.current.flyTo({
-        center: [centerLon, centerLat],
-        zoom: 12.5, 
-        pitch: 60, 
-        duration: 1000
+      map.current.fitBounds(expandedBounds, {
+        padding: { top: 50, bottom: 50, left: 50, right: 50 },
+        pitch: 45, 
+        maxZoom: 9 
       });
 
       hasFitBounds.current = true; 
@@ -143,7 +144,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       map.current.stop(); 
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 16.5, pitch: 70, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
+        zoom: 16.5, pitch: 60, bearing: -20, speed: 0.8, curve: 1.2, essential: true,
       });
     }
   }, [selectedIncident]);
@@ -167,14 +168,15 @@ function Map3D({ incidents, selectedIncident, onSelectIncident }) {
       if (!bounds.isEmpty()) {
         const ne = bounds.getNorthEast();
         const sw = bounds.getSouthWest();
-        const centerLon = (ne.lng + sw.lng) / 2;
-        const centerLat = (ne.lat + sw.lat) / 2;
+        const expandedBounds = new maplibregl.LngLatBounds(
+          [sw.lng - 0.05, sw.lat - 0.05], 
+          [ne.lng + 0.05, ne.lat + 0.05]  
+        );
 
-        map.current.flyTo({
-          center: [centerLon, centerLat],
-          zoom: 12.5, 
-          pitch: 60,
-          bearing: -20,
+        map.current.fitBounds(expandedBounds, {
+          padding: { top: 50, bottom: 50, left: 50, right: 50 },
+          pitch: 45,
+          maxZoom: 9,
           duration: 1000
         });
       }
