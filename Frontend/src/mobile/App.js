@@ -197,8 +197,8 @@ function App() {
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
   const [isLoadingCameras, setIsLoadingCameras] = useState(false);
   
-  const [showCameraCard, setShowCameraCard] = useState(true);
-  const [showDetailsCard, setShowDetailsCard] = useState(true);
+  // Toggle between Details and Cameras in the bottom sheet
+  const [activeTab, setActiveTab] = useState("details"); 
 
   const [showImageModal, setShowImageModal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -225,9 +225,7 @@ function App() {
     setActiveCameraIndex(0);
     setNearestCameras([]);
     setActivePage("map"); 
-    
-    setShowCameraCard(true);
-    setShowDetailsCard(true);
+    setActiveTab("details"); // Reset to details tab
     
     if (incident?.coordinates) {
       setIsLoadingCameras(true);
@@ -281,7 +279,6 @@ function App() {
     </button>
   );
 
-  // Map Controls
   const handleMake2D = () => {
     if (mapRef.current) {
       mapRef.current.stop(); 
@@ -305,34 +302,6 @@ function App() {
 
   const btnStyle = { background: "white", padding: "8px 12px", borderRadius: "8px", border: "2px solid #222", cursor: "pointer", fontWeight: 900, color: "#222", boxShadow: "2px 2px 0px rgba(0,0,0,0.8)", fontSize: "12px", zIndex: 50, fontFamily: font };
   const zoomBtnStyle = { background: "white", width: "40px", height: "40px", borderRadius: "8px", border: "2px solid #222", cursor: "pointer", fontWeight: 900, fontSize: "20px", color: "#222", boxShadow: "3px 3px 0px rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, fontFamily: font };
-  
-  const closeBtnStyle = { 
-    background: "transparent", 
-    border: "none", 
-    fontSize: "1.2rem", 
-    cursor: "pointer", 
-    fontWeight: 900, 
-    color: "#d64545", 
-    padding: "0 5px" 
-  };
-
-  const mobileCardStyle = {
-    position: "absolute",
-    bottom: selectedIncident ? "0px" : "-100%",
-    left: 0,
-    right: 0,
-    width: "100%",
-    maxHeight: "60vh",
-    background: "white",
-    padding: "1.25rem",
-    borderTopLeftRadius: "24px",
-    borderTopRightRadius: "24px",
-    borderTop: "4px solid #222",
-    boxShadow: "0 -10px 30px rgba(0,0,0,0.5)",
-    zIndex: 1000,
-    overflowY: "auto",
-    transition: "bottom 0.3s ease-in-out"
-  };
 
   return (
     <div style={{ height: "100vh", width: "100vw", overflow: "hidden", position: "relative", fontFamily: font }}>
@@ -348,22 +317,22 @@ function App() {
         </div>
       )}
 
-      {/* BOTTOM LEFT MAP CONTROLS */}
-      {activePage === "map" && (
-        <div style={{ position: "absolute", bottom: selectedIncident ? "65vh" : "30px", left: "15px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10, transition: "bottom 0.3s ease-in-out" }}>
-          <button onClick={handleMake2D} style={btnStyle}>2D</button>
-          <button onClick={handleResetView} style={btnStyle}>Reset</button>
-        </div>
+      {/* MAP CONTROLS (HIDE IF CARD IS OPEN) */}
+      {activePage === "map" && !selectedIncident && (
+        <>
+          <div style={{ position: "absolute", bottom: "30px", left: "15px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
+            <button onClick={handleMake2D} style={btnStyle}>2D</button>
+            <button onClick={handleResetView} style={btnStyle}>Reset</button>
+          </div>
+
+          <div style={{ position: "absolute", bottom: "30px", right: "15px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
+            <button onClick={() => mapRef.current?.zoomIn()} style={zoomBtnStyle}>+</button>
+            <button onClick={() => mapRef.current?.zoomOut()} style={zoomBtnStyle}>-</button>
+          </div>
+        </>
       )}
 
-      {/* BOTTOM RIGHT ZOOM CONTROLS */}
-      {activePage === "map" && (
-        <div style={{ position: "absolute", bottom: selectedIncident ? "65vh" : "30px", right: "15px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10, transition: "bottom 0.3s ease-in-out" }}>
-          <button onClick={() => mapRef.current?.zoomIn()} style={zoomBtnStyle}>+</button>
-          <button onClick={() => mapRef.current?.zoomOut()} style={zoomBtnStyle}>-</button>
-        </div>
-      )}
-
+      {/* LIST PAGE */}
       {activePage === "list" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto" }}>
           <div style={{ position: "fixed", inset: 0, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
@@ -417,6 +386,7 @@ function App() {
         </div>
       )}
 
+      {/* ABOUT PAGE */}
       {activePage === "about" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto" }}>
           <div style={{ position: "fixed", inset: 0, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
@@ -437,6 +407,7 @@ function App() {
         </div>
       )}
 
+      {/* TOP HEADER */}
       <div style={{ position: "absolute", top: "15px", left: "15px", zIndex: 10, background: "#22335C", border: "2px solid #fff", borderRadius: "12px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "3px 3px 0px rgba(0,0,0,0.8)", cursor: "pointer" }} onClick={() => setActivePage("map")}>
         <img src={driveGif} alt="Drive Animation" style={{ height: "30px", borderRadius: "6px", border: "2px solid #fff" }} />
         <div>
@@ -451,9 +422,9 @@ function App() {
         <span onClick={() => setActivePage("about")} style={{ fontWeight: 800, fontSize: "0.9rem", cursor: "pointer", color: "#222", opacity: activePage === "about" ? 1 : 0.5 }}>ABOUT</span>
       </div>
 
-      {/* TOP HORIZONTAL INCIDENTS SCROLLER */}
+      {/* LATEST INCIDENTS HORIZONTAL SCROLLER */}
       {activePage === "map" && !selectedIncident && (
-        <div style={{ position: "absolute", top: "70px", left: "0", right: "0", zIndex: 10, padding: "0 15px", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", top: "80px", left: "0", right: "0", zIndex: 10, padding: "0 15px", pointerEvents: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", paddingLeft: "5px" }}>
             <span style={{ fontSize: "1rem" }}>📍</span>
             <h3 style={{ margin: 0, fontWeight: 900, fontSize: "0.8rem", color: "#fff", letterSpacing: "1px", textShadow: "1px 1px 2px #000" }}>LATEST INCIDENTS</h3>
@@ -461,7 +432,7 @@ function App() {
           
           <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px", pointerEvents: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {recentIncidents.map((inc, i) => (
-              <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ minWidth: "200px", background: "#F9F6EE", border: "2px solid #222", borderRadius: "12px", padding: "10px", boxShadow: "3px 3px 0px rgba(0,0,0,0.8)", cursor: "pointer", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ minWidth: "160px", background: "#F9F6EE", border: "2px solid #222", borderRadius: "12px", padding: "10px", boxShadow: "3px 3px 0px rgba(0,0,0,0.8)", cursor: "pointer", display: "flex", flexDirection: "column", gap: "4px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#aaa" }}>0{i + 1}</span>
                   <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#aaa" }}>{formatTime(inc.start_dt)}</span>
@@ -473,64 +444,81 @@ function App() {
         </div>
       )}
 
-      {/* MAP OVERLAYS (BOTTOM SHEETS) */}
+      {/* SWIPEABLE BOTTOM SHEET OVERLAYS */}
       {activePage === "map" && selectedIncident && (
         <>
           <button onClick={handleExit} style={{ position: "absolute", top: "80px", left: "50%", transform: "translateX(-50%)", zIndex: 100, padding: "8px 16px", borderRadius: "20px", background: "#d64545", color: "white", border: "2px solid #222", fontSize: "0.9rem", fontWeight: 900, cursor: "pointer", boxShadow: "3px 3px 0px rgba(0,0,0,0.8)", fontFamily: font }}>
             ✕ EXIT
           </button>
 
-          {/* Camera Card (Mobile Bottom Sheet) */}
-          {showCameraCard && (
-            <div style={mobileCardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                <h3 style={{ margin: 0, color: "#222", textAlign: "center", fontSize: "1.1rem", fontWeight: 900, flex: 1 }}>📹 Cameras</h3>
-                <button onClick={() => setShowCameraCard(false)} style={closeBtnStyle}>✕</button>
-              </div>
-              
-              {isLoadingCameras ? (
-                <div style={{ width: "100%", height: "180px", background: "#eee", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #222", marginBottom: "1rem" }}>
-                  <span style={{ fontWeight: 800, color: "#666" }}>Loading cameras...</span>
-                </div>
-              ) : nearestCameras.length > 0 ? (
+          <div style={{ 
+            position: "absolute", 
+            bottom: 0, 
+            left: 0, 
+            right: 0, 
+            background: "white", 
+            borderTopLeftRadius: "24px", 
+            borderTopRightRadius: "24px", 
+            borderTop: "4px solid #222", 
+            boxShadow: "0 -10px 30px rgba(0,0,0,0.5)", 
+            zIndex: 1000,
+            maxHeight: "60vh",
+            display: "flex",
+            flexDirection: "column"
+          }}>
+            {/* TABS HEADER */}
+            <div style={{ display: "flex", justifyContent: "center", paddingTop: "10px" }}>
+              <div style={{ width: "40px", height: "5px", background: "#ccc", borderRadius: "3px" }}></div>
+            </div>
+
+            <div style={{ padding: "15px 15px 10px 15px", display: "flex", gap: "10px", borderBottom: "2px dashed #eee" }}>
+               <button onClick={() => setActiveTab("details")} style={{ flex: 1, padding: "10px", fontWeight: 900, fontSize: "1rem", borderRadius: "10px", border: "3px solid #222", background: activeTab === "details" ? "#222" : "white", color: activeTab === "details" ? "white" : "#222", cursor: "pointer", boxShadow: "2px 2px 0px rgba(0,0,0,0.8)" }}>DETAILS</button>
+               <button onClick={() => setActiveTab("cameras")} style={{ flex: 1, padding: "10px", fontWeight: 900, fontSize: "1rem", borderRadius: "10px", border: "3px solid #222", background: activeTab === "cameras" ? "#222" : "white", color: activeTab === "cameras" ? "white" : "#222", cursor: "pointer", boxShadow: "2px 2px 0px rgba(0,0,0,0.8)" }}>CAMERAS</button>
+            </div>
+
+            <div style={{ padding: "15px", overflowY: "auto" }}>
+              {activeTab === "details" && (
                 <>
-                  <div style={{ width: "100%", height: "180px", background: "#eee", borderRadius: "10px", overflow: "hidden", position: "relative", marginBottom: "1rem", border: "2px solid #222" }}>
-                    <img src={nearestCameras[activeCameraIndex].url} alt="Traffic Camera" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => e.target.src = "https://via.placeholder.com/400x180?text=Camera+Offline"} />
+                  <h2 style={{ margin: "0 0 10px 0", color: "#d64545", fontSize: "1.2rem", fontWeight: 900 }}>{orNA(selectedIncident.roadway_name)}</h2>
+                  <div style={{ fontSize: "0.95rem", marginBottom: "15px", lineHeight: "1.4", fontWeight: 700, color: "#333", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <FormattedDescription text={selectedIncident.description} />
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <button onClick={() => setActiveCameraIndex((prev) => prev > 0 ? prev - 1 : nearestCameras.length - 1)} style={{ background: "#FFC107", color: "#222", border: "2px solid #222", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", fontWeight: 900, boxShadow: "2px 2px 0px rgba(0,0,0,0.8)" }}>&lt;</button>
-                    <div style={{ fontSize: "0.9rem", fontWeight: 900, color: "#222" }}>📍 ~{nearestCameras[activeCameraIndex].distance_km.toFixed(2)} km</div>
-                    <button onClick={() => setActiveCameraIndex((prev) => prev < nearestCameras.length - 1 ? prev + 1 : 0)} style={{ background: "#FFC107", color: "#222", border: "2px solid #222", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", fontWeight: 900, boxShadow: "2px 2px 0px rgba(0,0,0,0.8)" }}>&gt;</button>
+                  <div style={{ background: "#f8f9fa", padding: "15px", borderRadius: "10px", marginBottom: "15px", border: "2px solid #ddd" }}>
+                    <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: 800 }}><b>When:</b> {formatTime(selectedIncident.start_dt)}</p>
+                    <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Lanes:</b> {orNA(selectedIncident.lanes_affected)}</p>
+                    <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Last updated:</b> {formatDateTime(selectedIncident.modified_dt)}</p>
+                    <DescriptionDropdown incident={selectedIncident} />
                   </div>
                 </>
-              ) : (
-                <div style={{ width: "100%", height: "180px", background: "#eee", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #222", marginBottom: "1rem" }}>
-                  <span style={{ fontWeight: 800, color: "#666" }}>No cameras available</span>
-                </div>
+              )}
+
+              {activeTab === "cameras" && (
+                <>
+                  <h2 style={{ margin: "0 0 10px 0", color: "#004c8c", fontSize: "1.2rem", fontWeight: 900 }}>Nearby Cameras</h2>
+                  {isLoadingCameras ? (
+                    <div style={{ width: "100%", height: "180px", background: "#eee", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #222", marginBottom: "1rem" }}>
+                      <span style={{ fontWeight: 800, color: "#666" }}>Loading cameras...</span>
+                    </div>
+                  ) : nearestCameras.length > 0 ? (
+                    <>
+                      <div style={{ width: "100%", height: "200px", background: "#eee", borderRadius: "10px", overflow: "hidden", position: "relative", marginBottom: "15px", border: "2px solid #222" }}>
+                        <img src={nearestCameras[activeCameraIndex].url} alt="Traffic Camera" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => e.target.src = "https://via.placeholder.com/400x200?text=Camera+Offline"} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <button onClick={() => setActiveCameraIndex((prev) => prev > 0 ? prev - 1 : nearestCameras.length - 1)} style={{ background: "#FFC107", color: "#222", border: "2px solid #222", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontSize: "1.2rem", fontWeight: 900, boxShadow: "2px 2px 0px rgba(0,0,0,0.8)" }}>&lt;</button>
+                        <div style={{ fontSize: "0.9rem", fontWeight: 900, color: "#222" }}>📍 ~{nearestCameras[activeCameraIndex].distance_km.toFixed(2)} km</div>
+                        <button onClick={() => setActiveCameraIndex((prev) => prev < nearestCameras.length - 1 ? prev + 1 : 0)} style={{ background: "#FFC107", color: "#222", border: "2px solid #222", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontSize: "1.2rem", fontWeight: 900, boxShadow: "2px 2px 0px rgba(0,0,0,0.8)" }}>&gt;</button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ width: "100%", height: "180px", background: "#eee", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #222", marginBottom: "1rem" }}>
+                      <span style={{ fontWeight: 800, color: "#666" }}>No cameras available</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-          )}
-
-          {/* Details Card (Mobile Bottom Sheet) */}
-          {showDetailsCard && (
-            <div style={mobileCardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                <h2 style={{ margin: 0, color: "#d64545", fontSize: "1.2rem", fontWeight: 900 }}>{orNA(selectedIncident.roadway_name)}</h2>
-                <button onClick={() => setShowDetailsCard(false)} style={closeBtnStyle}>✕</button>
-              </div>
-              
-              <div style={{ fontSize: "0.9rem", marginBottom: "1rem", lineHeight: "1.4", fontWeight: 700, color: "#333", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <FormattedDescription text={selectedIncident.description} />
-              </div>
-              
-              <div style={{ background: "#f8f9fa", padding: "1rem", borderRadius: "10px", marginBottom: "0.5rem", border: "2px solid #ddd" }}>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", fontWeight: 800 }}><b>When:</b> {formatTime(selectedIncident.start_dt)}</p>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", fontWeight: 800 }}><b>Lanes:</b> {orNA(selectedIncident.lanes_affected)}</p>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", fontWeight: 800 }}><b>Last updated:</b> {formatDateTime(selectedIncident.modified_dt)}</p>
-                <DescriptionDropdown incident={selectedIncident} />
-              </div>
-            </div>
-          )}
+          </div>
         </>
       )}
 
