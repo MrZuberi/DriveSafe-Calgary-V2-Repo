@@ -464,9 +464,9 @@ function App() {
             ✕ EXIT
           </button>
 
-          {/* Camera Card (Instant Load) */}
+          {/* Camera Card (Back to Original Spot) */}
           {showCameraCard && (
-            <div style={{ position: "absolute", top: "25vh", left: "calc(50% - 420px)", width: "420px", background: "white", padding: "1rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "25vh", left: "12%", width: "420px", background: "white", padding: "1rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                 <h3 style={{ margin: 0, color: "#222", textAlign: "center", fontSize: "1.1rem", fontWeight: 900, flex: 1 }}>📹 Cameras</h3>
                 <button onClick={() => setShowCameraCard(false)} style={closeBtnStyle}>✕</button>
@@ -495,9 +495,9 @@ function App() {
             </div>
           )}
 
-          {/* Details Card (Made Same Size as Camera and Positioned) */}
+          {/* Details Card (Same size, moved further right) */}
           {showDetailsCard && (
-            <div style={{ position: "absolute", top: "25vh", right: "calc(50% - 420px)", width: "420px", background: "white", padding: "1.5rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "25vh", right: "12%", width: "420px", background: "white", padding: "1.5rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                 <h2 style={{ margin: 0, color: "#d64545", fontSize: "1.4rem", fontWeight: 900 }}>{orNA(selectedIncident.roadway_name)}</h2>
                 <button onClick={() => setShowDetailsCard(false)} style={closeBtnStyle}>✕</button>
