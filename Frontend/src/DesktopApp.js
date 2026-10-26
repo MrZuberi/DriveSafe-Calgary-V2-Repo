@@ -221,7 +221,6 @@ function App() {
   const mapRef = useRef(null);
 
   const [listFilter, setListFilter] = useState("ALL");
-  const [listSort, setListSort] = useState("newest");
   const [expandedCard, setExpandedCard] = useState(null);
 
   function loadIncidents() {
@@ -277,7 +276,7 @@ function App() {
   processedList.sort((a, b) => {
     const dateA = new Date(a.start_dt || 0);
     const dateB = new Date(b.start_dt || 0);
-    return listSort === "newest" ? dateB - dateA : dateA - dateB;
+    return dateB - dateA;
   });
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5rem', fontFamily: font, fontWeight: 800 }}>Loading traffic data....</div>;
@@ -494,7 +493,7 @@ function App() {
               })}
               {processedList.length === 0 && (
                 <div style={{ textAlign: "center", fontWeight: 800, fontSize: "1.2rem", marginTop: "40px", color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
-                  No Incidents Found
+                  No incidents found for this filter.
                 </div>
               )}
             </div>
