@@ -125,7 +125,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   useEffect(() => {
     if (!map.current) return;
@@ -141,15 +141,14 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
       
       const el = document.createElement("div");
-      el.innerHTML = `
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor: pointer; filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.4));">
-          <path d="M12 2C7.58172 2 4 5.58172 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58172 16.4183 2 12 2Z" fill="#FF0000"/>
-          <circle cx="12" cy="10" r="4.5" fill="white"/>
-        </svg>
-      `;
+      Object.assign(el.style, {
+        width: "20px", height: "20px", backgroundColor: "#d64545",
+        borderRadius: "50%", border: "3px solid white",
+        boxShadow: "0 0 10px rgba(0,0,0,0.5)", cursor: "pointer",
+      });
       
       el.addEventListener("click", () => onSelectRef.current({ ...incident }));
-      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      const marker = new maplibregl.Marker({ element: el })
         .setLngLat([incident.coordinates.lon, incident.coordinates.lat])
         .addTo(map.current);
       markers.current.push(marker);
@@ -209,14 +208,6 @@ function App() {
   const [listFilter, setListFilter] = useState("ALL");
   const [listSort, setListSort] = useState("newest");
   const [expandedCard, setExpandedCard] = useState(null);
-
-  // Mobile detection
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   function loadIncidents() {
     axios.get(`${API_BASE_URL}/api/incidents?limit=500`).then(res => {
@@ -326,26 +317,6 @@ function App() {
     padding: "0 5px" 
   };
 
-  // Mobile bottom sheet styling
-  const mobileCardStyle = {
-    position: "fixed",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    width: "100%",
-    maxHeight: "80vh",
-    background: "white",
-    padding: "1.5rem",
-    borderTopLeftRadius: "24px",
-    borderTopRightRadius: "24px",
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderTop: "4px solid #222",
-    boxShadow: "0 -10px 30px rgba(0,0,0,0.5)",
-    zIndex: 1000,
-    overflowY: "auto"
-  };
-
   return (
     <div style={{ height: "100vh", width: "100vw", overflow: "hidden", position: "relative", fontFamily: font }}>
       
@@ -362,7 +333,7 @@ function App() {
 
       {/* BOTTOM LEFT MAP CONTROLS */}
       {activePage === "map" && (
-        <div style={{ position: "absolute", bottom: isMobile && selectedIncident ? "100px" : "30px", left: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
+        <div style={{ position: "absolute", bottom: "30px", left: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
           <button onClick={handleMake2D} style={btnStyle}>Make 2D</button>
           <button onClick={handleResetView} style={btnStyle}>Reset View</button>
         </div>
@@ -370,7 +341,7 @@ function App() {
 
       {/* BOTTOM RIGHT ZOOM CONTROLS */}
       {activePage === "map" && (
-        <div style={{ position: "absolute", bottom: isMobile && selectedIncident ? "100px" : "30px", right: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
+        <div style={{ position: "absolute", bottom: "30px", right: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
           <button onClick={() => mapRef.current?.zoomIn()} style={zoomBtnStyle}>+</button>
           <button onClick={() => mapRef.current?.zoomOut()} style={zoomBtnStyle}>-</button>
         </div>
@@ -465,7 +436,7 @@ function App() {
 
       {/* TOP RIGHT RECENT INCIDENTS LIST & CONTROLS */}
       {activePage === "map" && !selectedIncident && (
-        <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10, background: "#F9F6EE", border: "3px solid #222", borderRadius: "16px", padding: "16px", width: isMobile ? "90%" : "300px", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)" }}>
+        <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10, background: "#F9F6EE", border: "3px solid #222", borderRadius: "16px", padding: "16px", width: "300px", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)" }}>
           
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", paddingLeft: "8px" }}>
             <span style={{ fontSize: "1.2rem" }}>📍</span>
@@ -477,7 +448,7 @@ function App() {
               <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", transition: "all 0.2s" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.querySelector('.num').style.color = "#aaa"; e.currentTarget.querySelector('.title').style.color = "#fff"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.querySelector('.num').style.color = "#aaa"; e.currentTarget.querySelector('.title').style.color = "#222"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <span className="num" style={{ fontSize: "0.85rem", fontWeight: 800, color: "#aaa" }}>0{i + 1}</span>
-                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: isMobile ? "180px" : "150px" }}>{orNA(inc.roadway_name)}</span>
+                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "150px" }}>{orNA(inc.roadway_name)}</span>
                 </div>
                 <div className="time" style={{ fontSize: "0.85rem", fontWeight: 700, color: "#aaa" }}>{formatTime(inc.start_dt)}</div>
               </div>
@@ -495,7 +466,7 @@ function App() {
 
           {/* Camera Card (Instant Load) */}
           {showCameraCard && (
-            <div style={isMobile ? mobileCardStyle : { position: "absolute", top: "25vh", left: "12%", width: "420px", background: "white", padding: "1rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "25vh", left: "12%", width: "420px", background: "white", padding: "1rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                 <h3 style={{ margin: 0, color: "#222", textAlign: "center", fontSize: "1.1rem", fontWeight: 900, flex: 1 }}>📹 Cameras</h3>
                 <button onClick={() => setShowCameraCard(false)} style={closeBtnStyle}>✕</button>
@@ -526,7 +497,7 @@ function App() {
 
           {/* Details Card (Made Wider) */}
           {showDetailsCard && (
-            <div style={isMobile ? mobileCardStyle : { position: "absolute", top: "25vh", right: "12%", width: "500px", background: "white", padding: "1.5rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "25vh", right: "12%", width: "500px", background: "white", padding: "1.5rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                 <h2 style={{ margin: 0, color: "#d64545", fontSize: "1.4rem", fontWeight: 900 }}>{orNA(selectedIncident.roadway_name)}</h2>
                 <button onClick={() => setShowDetailsCard(false)} style={closeBtnStyle}>✕</button>

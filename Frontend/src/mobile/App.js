@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import './App.css'; // Since App.css is in src/mobile/
-import driveGif from "../drive.gif"; // Since drive.gif is in src/
-import image1 from "../image1.jpg"; // Since image1.jpg is in src/
+import './App.css'; 
+import driveGif from "../drive.gif"; 
+import image1 from "../image1.jpg"; 
 
 const maplibregl = window.maplibregl;
 
@@ -140,15 +140,14 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
       
       const el = document.createElement("div");
-      el.innerHTML = `
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor: pointer; filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.4));">
-          <path d="M12 2C7.58172 2 4 5.58172 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58172 16.4183 2 12 2Z" fill="#FF0000"/>
-          <circle cx="12" cy="10" r="4.5" fill="white"/>
-        </svg>
-      `;
+      Object.assign(el.style, {
+        width: "20px", height: "20px", backgroundColor: "#d64545",
+        borderRadius: "50%", border: "3px solid white",
+        boxShadow: "0 0 10px rgba(0,0,0,0.5)", cursor: "pointer",
+      });
       
       el.addEventListener("click", () => onSelectRef.current({ ...incident }));
-      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      const marker = new maplibregl.Marker({ element: el })
         .setLngLat([incident.coordinates.lon, incident.coordinates.lat])
         .addTo(map.current);
       markers.current.push(marker);
@@ -209,7 +208,7 @@ function App() {
   const [listSort, setListSort] = useState("newest");
   const [expandedCard, setExpandedCard] = useState(null);
 
-  // Mobile detection
+  // Mobile UI detection
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
