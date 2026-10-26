@@ -11,6 +11,7 @@ const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://drivesafecalg
 const CALGARY_CENTER = [-114.0719, 51.0447];
 
 const font = "'Nunito', sans-serif";
+const cloudBackground = "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=80&w=2000&auto=format&fit=crop";
 
 function orNA(value) {
   if (value === null || value === undefined) return "No Details";
@@ -43,10 +44,24 @@ function FormattedDescription({ text }) {
     .filter(p => p.trim() !== "");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-      {formatted.map((paragraph, idx) => (
-        <div key={idx}>{paragraph.trim()}</div>
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      {formatted.map((paragraph, idx) => {
+        const match = paragraph.trim().match(/^(Activities:|Speed Restriction:|Details:|Directions:)(.*)/i);
+        
+        if (match) {
+          return (
+            <div key={idx} style={{ fontWeight: 600 }}>
+              <strong style={{ fontWeight: 900 }}>{match[1]}</strong>{match[2]}
+            </div>
+          );
+        }
+        
+        return (
+          <div key={idx} style={{ fontWeight: 600 }}>
+            {paragraph.trim()}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -267,20 +282,30 @@ function App() {
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5rem', fontFamily: font, fontWeight: 800 }}>Loading traffic data....</div>;
 
-  const filterBtn = (label) => (
-    <button 
-      onClick={() => setListFilter(label)}
-      style={{ 
-        background: listFilter === label ? "#222" : "#fff", 
-        color: listFilter === label ? "#fff" : "#222", 
-        border: "3px solid #222", borderRadius: "10px", padding: "6px 12px", 
-        fontWeight: 800, fontSize: "0.9rem", cursor: "pointer", fontFamily: font,
-        boxShadow: "2px 2px 0px rgba(0,0,0,0.8)"
-      }}
-    >
-      {label}
-    </button>
-  );
+  const filterBtn = (label) => {
+    const isActive = listFilter === label;
+    return (
+      <button 
+        onClick={() => setListFilter(label)}
+        style={{ 
+          background: isActive ? "#d64545" : "white", 
+          color: isActive ? "white" : "#555", 
+          border: "3px solid #222", 
+          borderRadius: "20px", 
+          padding: "6px 18px", 
+          fontWeight: 800, 
+          fontSize: "0.85rem", 
+          cursor: "pointer", 
+          fontFamily: font,
+          transition: "all 0.1s",
+          boxShadow: "4px 4px 0px rgba(0,0,0,0.8)",
+          transform: isActive ? "translateY(1px)" : "translateY(0px)"
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
 
   // Map Controls
   const handleMake2D = () => {
@@ -347,54 +372,131 @@ function App() {
         </div>
       )}
 
+      {/* LIST PAGE (CLOUD BACKGROUND & CLAY STYLE) */}
       {activePage === "list" && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto" }}>
-          <div style={{ position: "fixed", inset: 0, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
-          <div style={{ padding: "100px 20px 40px 20px", display: "flex", justifyContent: "center", minHeight: "100vh" }}>
-            <div style={{ width: "100%", maxWidth: "800px" }}> 
-              <div style={{ marginBottom: "30px" }}>
-                <h1 style={{ fontSize: "4rem", fontWeight: 900, margin: "10px 0 20px 0", color: "#fff", letterSpacing: "-1px", textShadow: "2px 2px 0px #222, 4px 4px 0px rgba(0,0,0,0.5)" }}>Traffic Incidents</h1>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    {["ALL", "NE", "NW", "SE", "SW", "DOWNTOWN"].map(f => filterBtn(f))}
-                  </div>
-                  <button onClick={() => setListSort(prev => prev === "newest" ? "oldest" : "newest")} style={{ background: "#FFC107", border: "3px solid #222", borderRadius: "10px", padding: "8px 16px", fontWeight: 800, fontSize: "1rem", cursor: "pointer", boxShadow: "2px 2px 0px rgba(0,0,0,0.8)", color: "#222" }}>
-                    Sort: {listSort === "newest" ? "Newest ↓" : "Oldest ↑"}
-                  </button>
-                </div>
+        <div style={{ 
+          position: "absolute", 
+          inset: 0, 
+          zIndex: 1, 
+          overflowY: "auto", 
+          backgroundImage: `url(${cloudBackground})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed"
+        }}>
+          
+          {/* The entire page content, pushed down to avoid the fixed nav */}
+          <div style={{ padding: "140px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
+            
+            <div style={{ marginBottom: "40px" }}>
+              <h1 style={{ fontSize: "2.5rem", fontWeight: 900, margin: "0 0 20px 0", color: "#1a202c", letterSpacing: "-0.5px", textTransform: "uppercase", textShadow: "0 2px 4px rgba(255,255,255,0.8)" }}>
+                Traffic Incidents
+              </h1>
+              
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                {["ALL", "NE", "NW", "SE", "SW", "DOWNTOWN"].map(f => filterBtn(f))}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                {processedList.map((incident) => {
-                  const isOpen = expandedCard === incident.id;
-                  return (
-                    <div key={incident.id} style={{ background: "white", border: "4px solid #222", borderRadius: "16px", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", overflow: "hidden", transition: "all 0.2s" }}>
-                      <div onClick={() => setExpandedCard(isOpen ? null : incident.id)} style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", background: isOpen ? "#f8f9fa" : "white" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                          <div style={{ width: "45px", height: "45px", background: "#FDF2C0", border: "3px solid #222", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>🚗</div>
-                          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "#222", lineHeight: 1.2 }}>{orNA(incident.roadway_name)}</div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {processedList.map((incident) => {
+                const isOpen = expandedCard === incident.id;
+                return (
+                  <div 
+                    key={incident.id} 
+                    style={{ 
+                      background: "rgba(255, 255, 255, 0.95)", 
+                      backdropFilter: "blur(10px)", 
+                      borderRadius: "16px", 
+                      overflow: "hidden", 
+                      transition: "transform 0.1s", 
+                      border: "3px solid #222", 
+                      boxShadow: "6px 6px 0px rgba(0,0,0,0.8)"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+                  >
+                    
+                    <div 
+                      onClick={() => setExpandedCard(isOpen ? null : incident.id)} 
+                      style={{ 
+                        padding: "20px 24px", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "space-between", 
+                        cursor: "pointer" 
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#222", marginBottom: "6px" }}>
+                          {orNA(incident.roadway_name)}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                          <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#222" }}>{formatTime(incident.start_dt)}</div>
-                          <div style={{ fontSize: "1.2rem", color: "#222", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</div>
+                        <div style={{ fontSize: "0.9rem", color: "#4a5568", fontWeight: 700, fontFamily: font }}>
+                          {formatDateTime(incident.start_dt)}
                         </div>
                       </div>
-                      {isOpen && (
-                        <div style={{ padding: "0 20px 20px 20px", background: "#f8f9fa", borderTop: "2px dashed #ccc" }}>
-                          <div style={{ marginTop: "15px", fontSize: "1rem", fontWeight: 700, color: "#444", lineHeight: 1.5, marginBottom: "15px" }}>
-                            <FormattedDescription text={incident.description} />
-                          </div>
-                          <div style={{ background: "white", padding: "15px", borderRadius: "10px", border: "2px solid #ddd" }}>
-                            <p style={{ margin: "0 0 8px 0", fontSize: "0.95rem", fontWeight: 800 }}><b>Lanes Affected:</b> {orNA(incident.lanes_affected)}</p>
-                            <p style={{ margin: "0 0 8px 0", fontSize: "0.95rem", fontWeight: 800 }}><b>Details:</b> {orNA(incident.details)}</p>
-                            <p style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800 }}><b>Last Updated:</b> {formatDateTime(incident.modified_dt)}</p>
-                          </div>
-                        </div>
-                      )}
+                      
+                      <div style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        background: "#d64545",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "background 0.2s"
+                      }}>
+                        <span style={{ fontSize: "1rem", color: "white", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", fontWeight: 900 }}>
+                          ▼
+                        </span>
+                      </div>
                     </div>
-                  );
-                })}
-                {processedList.length === 0 && <div style={{ textAlign: "center", fontWeight: 800, fontSize: "1.2rem", marginTop: "40px", color: "#fff", textShadow: "1px 1px 2px #000" }}>No incidents found for this filter.</div>}
-              </div>
+                    
+                    {isOpen && (
+                      <div style={{ padding: "0 24px 24px 24px", animation: "fadeIn 0.2s", fontFamily: font }}>
+                        
+                        {/* Main Description (Speed Limits & Activities) */}
+                         <div style={{ marginBottom: "20px", fontSize: "0.95rem", color: "#2d3748", lineHeight: "1.6" }}>
+                            <FormattedDescription text={incident.description} />
+                         </div>
+
+                         {/* Dashboard Grid for Lanes & Time */}
+                         <div style={{ 
+                            display: "grid", 
+                            gridTemplateColumns: "1fr 1fr", 
+                            gap: "16px", 
+                            background: "#f7fafc", 
+                            padding: "16px", 
+                            borderRadius: "12px",
+                            border: "1px solid #e2e8f0",
+                            marginBottom: "20px"
+                         }}>
+                            <div>
+                              <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>LANES</div>
+                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{orNA(incident.lanes_affected)}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>LAST UPDATED</div>
+                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{formatDateTime(incident.modified_dt)}</div>
+                            </div>
+                         </div>
+
+                         {/* Details Section */}
+                         <div style={{ paddingTop: "16px", borderTop: "2px dashed #cbd5e0" }}>
+                            <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>DETAILS</div>
+                            <div style={{ fontSize: "0.95rem", color: "#4a5568", lineHeight: "1.6" }}>{orNA(incident.details)}</div>
+                         </div>
+
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {processedList.length === 0 && (
+                <div style={{ textAlign: "center", fontWeight: 800, fontSize: "1.2rem", marginTop: "40px", color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
+                  No Incidents Found
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -420,7 +522,7 @@ function App() {
         </div>
       )}
 
-      <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10, background: "#22335C", border: "3px solid #fff", borderRadius: "16px", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", cursor: "pointer" }} onClick={() => setActivePage("map")}>
+      <div style={{ position: "fixed", top: "20px", left: "20px", zIndex: 10, background: "#22335C", border: "3px solid #fff", borderRadius: "16px", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", cursor: "pointer" }} onClick={() => setActivePage("map")}>
         <img src={driveGif} alt="Drive Animation" style={{ height: "50px", borderRadius: "10px", border: "2px solid #fff" }} />
         <div>
           <h1 style={{ fontSize: "1.5rem", margin: 0, fontWeight: 900, letterSpacing: "-0.5px", color: "#fff" }}>DriveSafe Calgary</h1>
@@ -428,7 +530,7 @@ function App() {
         </div>
       </div>
 
-      <div style={{ position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)", zIndex: 10, background: "white", border: "3px solid #222", borderRadius: "20px", padding: "8px 30px", display: "flex", gap: "30px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)" }}>
+      <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", zIndex: 10, background: "white", border: "3px solid #222", borderRadius: "20px", padding: "8px 30px", display: "flex", gap: "30px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)" }}>
         <span onClick={() => setActivePage("map")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "map" ? 1 : 0.5 }}>MAP</span>
         <span onClick={() => setActivePage("list")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "list" ? 1 : 0.5 }}>LIST</span>
         <span onClick={() => setActivePage("about")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "about" ? 1 : 0.5 }}>ABOUT</span>
