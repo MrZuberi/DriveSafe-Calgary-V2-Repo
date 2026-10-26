@@ -125,7 +125,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onMapLoad]); // Fixed dependency array for build
+  }, []); 
 
   useEffect(() => {
     if (!map.current) return;
