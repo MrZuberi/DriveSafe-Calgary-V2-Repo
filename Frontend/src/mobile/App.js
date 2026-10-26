@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import './App.css';
-import './mobiles.css'; 
-import driveGif from "./drive.gif";
-import image1 from "./image1.jpg"; 
+import './App.css'; // Since App.css is in src/mobile/
+import driveGif from "../drive.gif"; // Since drive.gif is in src/
+import image1 from "../image1.jpg"; // Since image1.jpg is in src/
 
 const maplibregl = window.maplibregl;
 
@@ -325,7 +324,7 @@ function App() {
     padding: "0 5px" 
   };
 
-  // Mobile styles
+  // Mobile bottom sheet styling
   const mobileCardStyle = {
     position: "fixed",
     bottom: 0,
@@ -381,7 +380,7 @@ function App() {
           <div style={{ padding: "100px 20px 40px 20px", display: "flex", justifyContent: "center", minHeight: "100vh" }}>
             <div style={{ width: "100%", maxWidth: "800px" }}> 
               <div style={{ marginBottom: "30px" }}>
-                <h1 style={{ fontSize: "4rem", fontWeight: 900, margin: "10px 0 20px 0", color: "#fff", letterSpacing: "-1px", textShadow: "2px 2px 0px #222, 4px 4px 0px rgba(0,0,0,0.5)" }}>Traffic Incidents</h1>
+                <h1 style={{ fontSize: "3rem", fontWeight: 900, margin: "10px 0 20px 0", color: "#fff", letterSpacing: "-1px", textShadow: "2px 2px 0px #222, 4px 4px 0px rgba(0,0,0,0.5)" }}>Traffic Incidents</h1>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
                   <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                     {["ALL", "NE", "NW", "SE", "SW", "DOWNTOWN"].map(f => filterBtn(f))}
@@ -399,22 +398,22 @@ function App() {
                       <div onClick={() => setExpandedCard(isOpen ? null : incident.id)} style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", background: isOpen ? "#f8f9fa" : "white" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
                           <div style={{ width: "45px", height: "45px", background: "#FDF2C0", border: "3px solid #222", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>🚗</div>
-                          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "#222", lineHeight: 1.2 }}>{orNA(incident.roadway_name)}</div>
+                          <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#222", lineHeight: 1.2 }}>{orNA(incident.roadway_name)}</div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                          <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#222" }}>{formatTime(incident.start_dt)}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                          <div style={{ fontSize: "1rem", fontWeight: 900, color: "#222" }}>{formatTime(incident.start_dt)}</div>
                           <div style={{ fontSize: "1.2rem", color: "#222", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</div>
                         </div>
                       </div>
                       {isOpen && (
                         <div style={{ padding: "0 20px 20px 20px", background: "#f8f9fa", borderTop: "2px dashed #ccc" }}>
-                          <div style={{ marginTop: "15px", fontSize: "1rem", fontWeight: 700, color: "#444", lineHeight: 1.5, marginBottom: "15px" }}>
+                          <div style={{ marginTop: "15px", fontSize: "0.95rem", fontWeight: 700, color: "#444", lineHeight: 1.5, marginBottom: "15px" }}>
                             <FormattedDescription text={incident.description} />
                           </div>
                           <div style={{ background: "white", padding: "15px", borderRadius: "10px", border: "2px solid #ddd" }}>
-                            <p style={{ margin: "0 0 8px 0", fontSize: "0.95rem", fontWeight: 800 }}><b>Lanes Affected:</b> {orNA(incident.lanes_affected)}</p>
-                            <p style={{ margin: "0 0 8px 0", fontSize: "0.95rem", fontWeight: 800 }}><b>Details:</b> {orNA(incident.details)}</p>
-                            <p style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800 }}><b>Last Updated:</b> {formatDateTime(incident.modified_dt)}</p>
+                            <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Lanes Affected:</b> {orNA(incident.lanes_affected)}</p>
+                            <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Details:</b> {orNA(incident.details)}</p>
+                            <p style={{ margin: 0, fontSize: "0.9rem", fontWeight: 800 }}><b>Last Updated:</b> {formatDateTime(incident.modified_dt)}</p>
                           </div>
                         </div>
                       )}
@@ -432,15 +431,15 @@ function App() {
         <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto" }}>
           <div style={{ position: "fixed", inset: 0, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "20px" }}>
-            <div style={{ background: "white", borderRadius: "24px", padding: "40px", maxWidth: "800px", width: "100%", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)" }}>
-              <h1 style={{ fontSize: "2.5rem", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px 0", color: "#222" }}>About DriveSafe Calgary.</h1>
-              <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "20px" }}>
+            <div style={{ background: "white", borderRadius: "24px", padding: "30px", maxWidth: "800px", width: "100%", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)" }}>
+              <h1 style={{ fontSize: "2rem", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px 0", color: "#222" }}>About DriveSafe Calgary.</h1>
+              <p style={{ fontSize: "1rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "20px" }}>
                 DriveSafe Calgary is an application made by <a href="https://tahazuberi.vercel.app/" target="_blank" rel="noreferrer" style={{ color: "#004c8c", textDecoration: "underline" }}>Taha Zuberi</a>. 
                 It is a public, free tool built for Calgary residents to get real-time traffic incidents and live camera feeds. 
                 The goal is to keep the community informed and safe on the roads.
               </p>
-              <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "30px" }}>If you have any questions or concerns, please email below:</p>
-              <a href="mailto:taha.zuberi@ucalgary.ca" style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1.1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "transform 0.1s" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
+              <p style={{ fontSize: "1rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "30px" }}>If you have any questions or concerns, please email below:</p>
+              <a href="mailto:taha.zuberi@ucalgary.ca" style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "transform 0.1s" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
                 <span style={{ fontSize: "1.2rem", marginRight: "10px" }}>✉️</span> taha.zuberi@ucalgary.ca
               </a>
             </div>
@@ -448,18 +447,18 @@ function App() {
         </div>
       )}
 
-      <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10, background: "#22335C", border: "3px solid #fff", borderRadius: "16px", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", cursor: "pointer" }} onClick={() => setActivePage("map")}>
-        <img src={driveGif} alt="Drive Animation" style={{ height: "50px", borderRadius: "10px", border: "2px solid #fff" }} />
+      <div style={{ position: "absolute", top: "20px", left: "20px", zIndex: 10, background: "#22335C", border: "3px solid #fff", borderRadius: "16px", padding: "10px 15px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", cursor: "pointer" }} onClick={() => setActivePage("map")}>
+        <img src={driveGif} alt="Drive Animation" style={{ height: "40px", borderRadius: "8px", border: "2px solid #fff" }} />
         <div>
-          <h1 style={{ fontSize: "1.5rem", margin: 0, fontWeight: 900, letterSpacing: "-0.5px", color: "#fff" }}>DriveSafe Calgary</h1>
-          <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#E0E6ED" }}>Live Traffic Incidents</p>
+          <h1 style={{ fontSize: "1.1rem", margin: 0, fontWeight: 900, letterSpacing: "-0.5px", color: "#fff" }}>DriveSafe Calgary</h1>
+          <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: 700, color: "#E0E6ED" }}>Live Traffic</p>
         </div>
       </div>
 
-      <div style={{ position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)", zIndex: 10, background: "white", border: "3px solid #222", borderRadius: "20px", padding: "8px 30px", display: "flex", gap: "30px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)" }}>
-        <span onClick={() => setActivePage("map")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "map" ? 1 : 0.5 }}>MAP</span>
-        <span onClick={() => setActivePage("list")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "list" ? 1 : 0.5 }}>LIST</span>
-        <span onClick={() => setActivePage("about")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "about" ? 1 : 0.5 }}>ABOUT</span>
+      <div style={{ position: "absolute", top: "80px", left: "50%", transform: "translateX(-50%)", zIndex: 10, background: "white", border: "3px solid #222", borderRadius: "20px", padding: "8px 20px", display: "flex", gap: "20px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)" }}>
+        <span onClick={() => setActivePage("map")} style={{ fontWeight: 800, fontSize: "1rem", cursor: "pointer", color: "#222", opacity: activePage === "map" ? 1 : 0.5 }}>MAP</span>
+        <span onClick={() => setActivePage("list")} style={{ fontWeight: 800, fontSize: "1rem", cursor: "pointer", color: "#222", opacity: activePage === "list" ? 1 : 0.5 }}>LIST</span>
+        <span onClick={() => setActivePage("about")} style={{ fontWeight: 800, fontSize: "1rem", cursor: "pointer", color: "#222", opacity: activePage === "about" ? 1 : 0.5 }}>ABOUT</span>
       </div>
 
       {/* TOP RIGHT RECENT INCIDENTS LIST & CONTROLS */}
