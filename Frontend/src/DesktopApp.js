@@ -45,19 +45,6 @@ const IconMinus = ({ size = 24, color = "currentColor" }) => (
   </svg>
 );
 
-const IconArrowRight = ({ size = 20, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-const IconCar = ({ size = 18, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M5 16V11L7 6H17L19 11V16" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <rect x="3" y="11" width="18" height="6" rx="2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="7.5" cy="14" r="0.6" fill={color} stroke={color} strokeWidth="1"/>
-    <circle cx="16.5" cy="14" r="0.6" fill={color} stroke={color} strokeWidth="1"/>
-  </svg>
-);
 // -----------------------------
 
 // Start downloading + decoding the background image immediately so it is ready before the List page opens
@@ -151,7 +138,6 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   const map = useRef(null);
   const markers = useRef([]);
   const onSelectRef = useRef(onSelectIncident);
-  const hasFitBounds = useRef(false); 
   onSelectRef.current = onSelectIncident;
 
   useEffect(() => {
@@ -218,14 +204,8 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
     markers.current.forEach((mk) => mk.remove());
     markers.current = [];
 
-    const bounds = new maplibregl.LngLatBounds();
-    let hasPoints = false;
-
     incidents.forEach((incident) => {
       if (!incident.coordinates) return;
-      hasPoints = true;
-      bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
-      
       // Custom Red Teardrop Marker
       const el = document.createElement("div");
       el.innerHTML = `
@@ -241,14 +221,6 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
         .addTo(map.current);
       markers.current.push(marker);
     });
-
-    if (!hasFitBounds.current && hasPoints && !bounds.isEmpty()) {
-      const ne = bounds.getNorthEast();
-      const sw = bounds.getSouthWest();
-      const expandedBounds = new maplibregl.LngLatBounds([sw.lng - 0.05, sw.lat - 0.05], [ne.lng + 0.05, ne.lat + 0.05]);
-      map.current.fitBounds(expandedBounds, { padding: { top: 50, bottom: 50, left: 50, right: 50 }, pitch: 45, maxZoom: 10.0 });
-      hasFitBounds.current = true; 
-    }
   }, [incidents]);
 
   useEffect(() => {
@@ -353,6 +325,20 @@ function App() {
     setSelectedIncident(null);
     setNearestCameras([]);
     window.dispatchEvent(new Event('zoomOutFromIncident'));
+  }
+
+  // Opens the default mail app; if nothing opens (no mail app set up), falls back to Gmail compose in a new tab
+  function openEmail(e) {
+    e.preventDefault();
+    const to = "taha.zuberi@ucalgary.ca";
+    let left = false;
+    const onBlur = () => { left = true; };
+    window.addEventListener("blur", onBlur, { once: true });
+    window.location.href = `mailto:${to}`;
+    setTimeout(() => {
+      window.removeEventListener("blur", onBlur);
+      if (!left) window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}`, "_blank", "noopener,noreferrer");
+    }, 900);
   }
 
   const recentIncidents = incidents.slice(0, 5);
@@ -664,12 +650,9 @@ function App() {
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {recentIncidents.map((inc) => (
               <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.querySelector('.title').style.color = "#fff"; e.currentTarget.querySelector('.time').style.color = "#ccc"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.querySelector('.title').style.color = "#222"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#aaa", minWidth: "20px" }}>0{recentIncidents.indexOf(inc) + 1}</span>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#d64545", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <IconCar size={18} color="white" />
-                  </div>
-                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "105px", transition: "color 0.2s ease-in-out" }}>{orNA(inc.roadway_name)}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#aaa" }}>0{recentIncidents.indexOf(inc) + 1}</span>
+                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "150px", transition: "color 0.2s ease-in-out" }}>{orNA(inc.roadway_name)}</span>
                 </div>
                 <div className="time" style={{ fontSize: "0.9rem", fontWeight: 800, color: "#aaa", transition: "color 0.2s ease-in-out" }}>{timeAgoShort(inc.start_dt)}</div>
               </div>
@@ -751,8 +734,8 @@ function App() {
             The goal is to keep the community informed and safe on the roads.
           </p>
           <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "30px" }}>If you have any questions or concerns, please email below:</p>
-          <a href="mailto:taha.zuberi@ucalgary.ca" style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1.1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-            <IconArrowRight size={20} color="#004c8c" style={{ marginRight: "10px" }} /> taha.zuberi@ucalgary.ca
+          <a href="mailto:taha.zuberi@ucalgary.ca" onClick={openEmail} style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1.1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
+            taha.zuberi@ucalgary.ca
           </a>
         </div>
       </div>

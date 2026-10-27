@@ -59,8 +59,11 @@ const IconInfo = ({ size = 20, color = "currentColor" }) => (
 const IconClose = ({ size = 18, color = "currentColor" }) => (
   <Svg size={size}><path d="M6 6L18 18M18 6L6 18" stroke={color} {...sp} /></Svg>
 );
-const IconLocate = ({ size = 20, color = "currentColor" }) => (
-  <Svg size={size}><path d="M20 4L4 11L11 13L13 20L20 4Z" stroke={color} {...sp} fill={color} fillOpacity="0.15" /></Svg>
+const IconReset = ({ size = 20, color = "currentColor" }) => (
+  <Svg size={size}>
+    <path d="M4 12A8 8 0 1 0 6.3 6.3" stroke={color} {...sp} />
+    <path d="M4 4V8.5H8.5" stroke={color} {...sp} />
+  </Svg>
 );
 const IconChevronRight = ({ size = 16, color = "currentColor" }) => (
   <Svg size={size}><path d="M9 6L15 12L9 18" stroke={color} {...sp} /></Svg>
@@ -434,7 +437,6 @@ function App() {
   const [is3D, setIs3D] = useState(true);
 
   const mapRef = useRef(null);
-  const userMarker = useRef(null);
   const paddingRef = useRef({ top: 0, bottom: 0, left: 0, right: 0 });
 
   paddingRef.current = wide
@@ -494,27 +496,11 @@ function App() {
     }
   };
 
-  const handleLocate = () => {
-    const m = mapRef.current;
-    if (!m || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lngLat = [pos.coords.longitude, pos.coords.latitude];
-        if (!userMarker.current) {
-          const dot = document.createElement("div");
-          Object.assign(dot.style, {
-            width: "18px", height: "18px", borderRadius: "50%", background: COLORS.blue,
-            border: "3px solid white", boxShadow: "0 0 0 6px rgba(0,122,255,0.25), 0 2px 6px rgba(0,0,0,0.4)",
-          });
-          userMarker.current = new maplibregl.Marker({ element: dot }).setLngLat(lngLat).addTo(m);
-        } else {
-          userMarker.current.setLngLat(lngLat);
-        }
-        m.flyTo({ center: lngLat, zoom: 13, speed: 1.2, essential: true });
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+  const handleReset = () => {
+    setSelectedIncident(null);
+    setNearestCameras([]);
+    setIs3D(true);
+    window.dispatchEvent(new Event("zoomOutFromIncident"));
   };
 
   let processedList = [...incidents];
@@ -794,7 +780,7 @@ function App() {
         <div style={{ height: 1, background: COLORS.line, margin: "0 6px" }} />
         <button className="ds-row" onClick={handleToggle3D} aria-label="Toggle 2D / 3D" style={{ ...roundBtn, fontSize: 14, fontWeight: 700 }}>{is3D ? "2D" : "3D"}</button>
         <div style={{ height: 1, background: COLORS.line, margin: "0 6px" }} />
-        <button className="ds-row" onClick={handleLocate} aria-label="My location" style={roundBtn}><IconLocate size={18} /></button>
+        <button className="ds-row" onClick={handleReset} aria-label="Reset view" style={roundBtn}><IconReset size={18} /></button>
       </div>
 
       {/* BOTTOM SHEET */}
