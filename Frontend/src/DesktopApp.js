@@ -124,22 +124,6 @@ function FormattedDescription({ text }) {
   );
 }
 
-function DescriptionDropdown({ incident }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div style={{ margin: "0.5rem 0", fontFamily: font }}>
-      <button type="button" onClick={() => setOpen(!open)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: '#004c8c', fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: "all 0.2s ease-in-out" }}>
-        Description <IconChevronDown size={16} color="#004c8c" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease-in-out' }} />
-      </button>
-      {open && (
-        <div style={{ marginTop: '0.5rem', paddingLeft: '0.5rem', borderLeft: '3px solid #dee2e6', lineHeight: '1.5' }}>
-          <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem" }}><FormattedDescription text={incident.details} /></p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -600,18 +584,13 @@ function App() {
                             marginBottom: "20px"
                          }}>
                             <div>
-                              <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>LANES</div>
-                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{orNA(incident.lanes_affected)}</div>
+                              <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>QUADRANT</div>
+                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{orNA(incident.quadrant)}</div>
                             </div>
                             <div>
                               <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>LAST UPDATED</div>
                               <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{formatDateTime(incident.modified_dt)}</div>
                             </div>
-                         </div>
-
-                         <div style={{ paddingTop: "16px", borderTop: "2px dashed #cbd5e0" }}>
-                            <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>DETAILS</div>
-                            <div style={{ fontSize: "0.95rem", color: "#4a5568", lineHeight: "1.6" }}>{orNA(incident.details)}</div>
                          </div>
 
                       </div>
@@ -725,9 +704,8 @@ function App() {
               
               <div style={{ background: "#f8f9fa", padding: "1rem", borderRadius: "10px", marginBottom: "0.5rem", border: "2px solid #ddd" }}>
                 <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>When:</b> {formatTime(selectedIncident.start_dt)}</p>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Lanes:</b> {orNA(selectedIncident.lanes_affected)}</p>
+                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Quadrant:</b> {orNA(selectedIncident.quadrant)}</p>
                 <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Last updated:</b> {formatDateTime(selectedIncident.modified_dt)}</p>
-                <DescriptionDropdown incident={selectedIncident} />
               </div>
             </div>
           )}

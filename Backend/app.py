@@ -19,7 +19,7 @@ CORS(app, expose_headers=["X-Cache", "X-Response-Time-ms"])
 # gets api urls from environment variables (heroku config)
 CAMERAS_URL = os.getenv('CAMERAS_URL')
 # 511 Alberta events API (all of Alberta - we filter to Calgary below)
-INCIDENTS_URL = os.getenv('INCIDENTS_URL')  # set in heroku config vars (includes the api key)
+INCIDENTS_URL = os.getenv('INCIDENTS_URL')  # set in heroku config vars (the open calgary json link)
 
 
 # calgary bounding box (slightly padded so Airdrie/Okotoks/Cochrane edge events still appear)
@@ -101,6 +101,7 @@ def es_ensure_index():
                 "modified_dt": {"type": "date"},
                 "lanes_affected": {"type": "keyword"},
                 "severity": {"type": "keyword"},
+                "quadrant": {"type": "keyword"},
                 "location": {"type": "geo_point"}
             }
         }
@@ -277,12 +278,27 @@ def clean_camera_data(rec):
         "coordinates": coords
     }
 
-# takes messy incident data from the 511 alberta API and makes it clean.
-# returns None if the record is outside the Calgary bounds (so it gets filtered out).
+# converts open calgary timestamps like "2026-09-18T21:36:31.000" (utc, no Z) into "2026-09-18T21:36:31Z"
+# so the frontend's new Date(...) reads them as utc and shows the right local time
+def utc_text_to_iso(value):
+    if not value:
+        return None
+    s = str(value).strip()
+    if len(s) < 19:
+        return None
+    return s[:19] + "Z"
+
+
+# takes messy incident data from the open calgary traffic incidents api and makes it clean.
+# returns None if the record has no valid coordinates or is outside the Calgary bounds.
 def clean_incident_data(rec):
-    # the 511 alberta api uses "Latitude" / "Longitude" (capitalized)
-    lat = rec.get("Latitude")
-    lon = rec.get("Longitude")
+    # open calgary gives latitude / longitude as text fields (and also a geojson "point")
+    lat = rec.get("latitude")
+    lon = rec.get("longitude")
+    if (lat is None or lon is None) and isinstance(rec.get("point"), dict):
+        pt = rec["point"].get("coordinates")
+        if pt and len(pt) == 2:
+            lon, lat = pt  # geojson is lon first, lat second
 
     # drop records with no coordinates or outside calgary
     if not is_in_calgary(lat, lon):
@@ -291,16 +307,17 @@ def clean_incident_data(rec):
     coords = {"lat": float(lat), "lon": float(lon)}
 
     # clean format the rest of the app expects.
-    # note: new api has no "quadrant" field -> we omit it (UI no longer shows it).
+    # this dataset has no lanes / details / severity fields, so those stay None (the UI shows "No Details").
     return {
-        "id": rec.get("ID"),
-        "roadway_name": rec.get("RoadwayName"),
-        "description": rec.get("Description"),
-        "details": rec.get("Details"),
-        "start_dt": unix_to_iso(rec.get("StartDate")),
-        "modified_dt": unix_to_iso(rec.get("LastUpdated")),
-        "lanes_affected": rec.get("LanesAffected"),
-        "severity": rec.get("Severity"),
+        "id": rec.get("id"),
+        "roadway_name": rec.get("incident_info"),
+        "description": rec.get("description"),
+        "details": None,
+        "start_dt": utc_text_to_iso(rec.get("start_dt_utc")),
+        "modified_dt": utc_text_to_iso(rec.get("modified_dt_utc")),
+        "lanes_affected": None,
+        "severity": None,
+        "quadrant": rec.get("quadrant"),
         "coordinates": coords
     }
 
