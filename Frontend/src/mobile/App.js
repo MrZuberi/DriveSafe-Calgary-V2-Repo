@@ -225,11 +225,14 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
       bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
 
       const el = document.createElement("div");
-      el.style.width = "40px";
-      el.style.height = "40px";
+      el.style.width = "30px";
+      el.style.height = "30px";
+      el.style.display = "flex";
+      el.style.alignItems = "flex-end";
+      el.style.justifyContent = "center";
       el.style.cursor = "pointer";
       el.innerHTML = `
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; transform-origin: 50% 100%; transition: transform 0.25s ease; filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.45));">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; transform-origin: 50% 100%; transition: transform 0.25s ease; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));">
           <path d="M12 2C7.58 2 4 5.58 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58 16.42 2 12 2Z" fill="#d64545"/>
           <circle cx="12" cy="10" r="4" fill="white"/>
         </svg>
@@ -255,7 +258,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
   useEffect(() => {
     Object.entries(markerEls.current).forEach(([id, el]) => {
       const svg = el.firstElementChild;
-      if (svg) svg.style.transform = selectedIncident && String(selectedIncident.id) === String(id) ? "scale(1.35)" : "scale(1)";
+      if (svg) svg.style.transform = selectedIncident && String(selectedIncident.id) === String(id) ? "scale(1.3)" : "scale(1)";
     });
   }, [selectedIncident, incidents]);
 
@@ -305,7 +308,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
 
 // ---------- BOTTOM SHEET (Apple Maps style) ----------
 const SNAPS = ["peek", "half", "full"];
-const PEEK_HEIGHT = 150;
+const PEEK_HEIGHT = 76;
 
 function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, children }) {
   const heights = { peek: PEEK_HEIGHT, half: Math.round(vh * 0.52), full: vh - 56 };
@@ -426,7 +429,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("details");
   const [isLoading, setIsLoading] = useState(true);
   const [listFilter, setListFilter] = useState("ALL");
-  const [snap, setSnap] = useState("half");
+  const [snap, setSnap] = useState("peek");
   const [showAbout, setShowAbout] = useState(false);
   const [is3D, setIs3D] = useState(true);
 
@@ -535,7 +538,7 @@ function App() {
 
   // ----- shared small pieces -----
   const roundBtn = {
-    width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+    width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
     background: "transparent", border: "none", color: COLORS.blue, cursor: "pointer", padding: 0,
   };
 
@@ -744,6 +747,33 @@ function App() {
         />
       </div>
 
+      {/* TITLE (top left) */}
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          left: wide ? 404 : "calc(env(safe-area-inset-left, 0px) + 12px)",
+          zIndex: 15,
+          background: "#22335C",
+          border: "2px solid #fff",
+          borderRadius: 12,
+          padding: "5px 10px 5px 6px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+          opacity: snap === "full" && !wide ? 0 : 1,
+          pointerEvents: "none",
+          transition: "opacity 0.25s ease",
+        }}
+      >
+        <img src={driveGif} alt="" style={{ height: 28, width: 28, borderRadius: 7, objectFit: "cover", border: "1.5px solid #fff" }} />
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.1, letterSpacing: "-0.2px" }}>DriveSafe Calgary</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#E0E6ED", lineHeight: 1.2 }}>Live Traffic Incidents</div>
+        </div>
+      </div>
+
       {/* FLOATING MAP CONTROLS (top right, glass pill like Apple Maps) */}
       <div
         style={{
@@ -760,11 +790,11 @@ function App() {
           transition: "opacity 0.25s ease",
         }}
       >
-        <button className="ds-row" onClick={() => setShowAbout(true)} aria-label="About" style={roundBtn}><IconInfo size={22} /></button>
+        <button className="ds-row" onClick={() => setShowAbout(true)} aria-label="About" style={roundBtn}><IconInfo size={20} /></button>
         <div style={{ height: 1, background: COLORS.line, margin: "0 6px" }} />
-        <button className="ds-row" onClick={handleToggle3D} aria-label="Toggle 2D / 3D" style={{ ...roundBtn, fontSize: 15, fontWeight: 700 }}>{is3D ? "2D" : "3D"}</button>
+        <button className="ds-row" onClick={handleToggle3D} aria-label="Toggle 2D / 3D" style={{ ...roundBtn, fontSize: 14, fontWeight: 700 }}>{is3D ? "2D" : "3D"}</button>
         <div style={{ height: 1, background: COLORS.line, margin: "0 6px" }} />
-        <button className="ds-row" onClick={handleLocate} aria-label="My location" style={roundBtn}><IconLocate size={20} /></button>
+        <button className="ds-row" onClick={handleLocate} aria-label="My location" style={roundBtn}><IconLocate size={18} /></button>
       </div>
 
       {/* BOTTOM SHEET */}

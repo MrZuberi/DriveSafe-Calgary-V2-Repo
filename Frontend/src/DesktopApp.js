@@ -664,11 +664,12 @@ function App() {
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {recentIncidents.map((inc) => (
               <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.querySelector('.title').style.color = "#fff"; e.currentTarget.querySelector('.time').style.color = "#ccc"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.querySelector('.title').style.color = "#222"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#aaa", minWidth: "20px" }}>0{recentIncidents.indexOf(inc) + 1}</span>
                   <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#d64545", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <IconCar size={18} color="white" />
                   </div>
-                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "135px", transition: "color 0.2s ease-in-out" }}>{orNA(inc.roadway_name)}</span>
+                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "105px", transition: "color 0.2s ease-in-out" }}>{orNA(inc.roadway_name)}</span>
                 </div>
                 <div className="time" style={{ fontSize: "0.9rem", fontWeight: 800, color: "#aaa", transition: "color 0.2s ease-in-out" }}>{timeAgoShort(inc.start_dt)}</div>
               </div>
