@@ -43,10 +43,10 @@ const Svg = ({ size = 20, children, style }) => (
 );
 const sp = { strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
 
-const IconPin = ({ size = 20, color = "currentColor" }) => (
+const IconSearch = ({ size = 20, color = "currentColor" }) => (
   <Svg size={size}>
-    <path d="M12 21C12 21 19 15.5 19 10C19 6.13 15.87 3 12 3C8.13 3 5 6.13 5 10C5 15.5 12 21 12 21Z" stroke={color} {...sp} />
-    <circle cx="12" cy="10" r="2.5" stroke={color} {...sp} />
+    <circle cx="11" cy="11" r="6.5" stroke={color} {...sp} />
+    <path d="M16 16L20 20" stroke={color} {...sp} />
   </Svg>
 );
 const IconInfo = ({ size = 20, color = "currentColor" }) => (
@@ -431,7 +431,8 @@ function App() {
   const [isLoadingCameras, setIsLoadingCameras] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [isLoading, setIsLoading] = useState(true);
-  const [listFilter, setListFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState(null); // null = not searching
   const [snap, setSnap] = useState("peek");
   const [showAbout, setShowAbout] = useState(false);
   const [is3D, setIs3D] = useState(true);
@@ -455,7 +456,26 @@ function App() {
 
   useEffect(() => { loadIncidents(); const t = setInterval(loadIncidents, 30000); return () => clearInterval(t); }, []);
 
+  // Fuzzy search (Elasticsearch on the backend) - waits a moment after typing stops
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) { setSearchResults(null); return; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      axios.get(`${API_BASE_URL}/api/search`, { params: { q, limit: 50 } })
+        .then(res => { if (!cancelled) setSearchResults(res.data?.items || []); })
+        .catch(() => {
+          if (cancelled) return;
+          const ql = q.toLowerCase();
+          setSearchResults(incidents.filter(i => `${i.roadway_name || ""} ${i.description || ""} ${i.details || ""}`.toLowerCase().includes(ql)));
+        });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   function handleSelectIncident(incident) {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     setSelectedIncident(incident);
     setActiveCameraIndex(0);
     setNearestCameras([]);
@@ -503,14 +523,10 @@ function App() {
     window.dispatchEvent(new Event("zoomOutFromIncident"));
   };
 
-  let processedList = [...incidents];
-  if (listFilter !== "ALL") {
-    processedList = processedList.filter(i =>
-      (i.description && i.description.toUpperCase().includes(listFilter)) ||
-      (i.details && i.details.toUpperCase().includes(listFilter))
-    );
-  }
-  processedList.sort((a, b) => new Date(b.start_dt || 0) - new Date(a.start_dt || 0));
+  // when searching, keep the search relevance order; otherwise newest first
+  const isSearching = searchResults !== null;
+  let processedList = isSearching ? [...searchResults] : [...incidents];
+  if (!isSearching) processedList.sort((a, b) => new Date(b.start_dt || 0) - new Date(a.start_dt || 0));
 
   if (isLoading) {
     return (
@@ -543,23 +559,6 @@ function App() {
     </button>
   );
 
-  const chip = (label) => {
-    const active = listFilter === label;
-    return (
-      <button
-        key={label}
-        className="ds-press"
-        onClick={() => setListFilter(label)}
-        style={{
-          flexShrink: 0, padding: "7px 14px", borderRadius: 18, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer",
-          background: active ? COLORS.red : COLORS.fill, color: active ? "white" : COLORS.text,
-        }}
-      >
-        {label}
-      </button>
-    );
-  };
-
   const inDetails = !!selectedIncident;
 
   // ----- sheet header content -----
@@ -584,10 +583,30 @@ function App() {
     </div>
   ) : (
     <div style={{ padding: "2px 16px 10px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: COLORS.fill, borderRadius: 12, padding: "10px 12px" }}>
-        <IconPin size={18} color={COLORS.red} />
-        <div style={{ flex: 1, fontSize: 16, fontWeight: 600, color: COLORS.text }}>Live Traffic Incidents</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "white", background: COLORS.red, borderRadius: 10, padding: "2px 9px" }}>{processedList.length}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.fill, borderRadius: 12, padding: "0 12px", height: 44 }}>
+        <IconSearch size={18} color={COLORS.sub} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => { if (!wide) setSnap("full"); }}
+          placeholder="Search roads or locations"
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCorrect="off"
+          style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 16, fontWeight: 500, color: COLORS.text, fontFamily: font, height: "100%" }}
+        />
+        {searchQuery ? (
+          <button
+            onClick={() => setSearchQuery("")}
+            aria-label="Clear search"
+            style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(118,118,128,0.4)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+          >
+            <IconClose size={12} />
+          </button>
+        ) : (
+          <div style={{ flexShrink: 0, fontSize: 13, fontWeight: 700, color: "white", background: COLORS.red, borderRadius: 10, padding: "2px 9px" }}>{incidents.length}</div>
+        )}
       </div>
     </div>
   );
@@ -599,11 +618,7 @@ function App() {
         {segBtn("cameras", "Cameras")}
       </div>
     </div>
-  ) : (
-    <div className="ds-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 16px 10px 16px", WebkitOverflowScrolling: "touch" }}>
-      {["ALL", "NE", "NW", "SE", "SW", "DOWNTOWN"].map(chip)}
-    </div>
-  );
+  ) : null;
 
   // ----- sheet body -----
   const infoRow = (label, value, last) => (
@@ -641,7 +656,7 @@ function App() {
         </div>
       ))}
       {processedList.length === 0 && (
-        <div style={{ textAlign: "center", color: COLORS.sub, fontWeight: 600, padding: "40px 20px" }}>No incidents found for this filter.</div>
+        <div style={{ textAlign: "center", color: COLORS.sub, fontWeight: 600, padding: "40px 20px" }}>No incidents found.</div>
       )}
     </div>
   );

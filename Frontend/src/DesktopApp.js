@@ -33,6 +33,13 @@ const IconChevronDown = ({ size = 20, color = "currentColor", style = {} }) => (
   </svg>
 );
 
+const IconSearch = ({ size = 20, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="11" cy="11" r="6.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 16L20 20" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const IconPlus = ({ size = 24, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M12 5V19M5 12H19" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -280,7 +287,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
 
-  const [listFilter, setListFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState(null); // null = not searching
   const [expandedCard, setExpandedCard] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
 
@@ -297,6 +305,24 @@ function App() {
   }
 
   useEffect(() => { loadIncidents(); const t = setInterval(loadIncidents, 30000); return () => clearInterval(t); }, []);
+
+  // Fuzzy search (Elasticsearch on the backend) - waits a moment after typing stops
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) { setSearchResults(null); return; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      axios.get(`${API_BASE_URL}/api/search`, { params: { q, limit: 50 } })
+        .then(res => { if (!cancelled) setSearchResults(res.data?.items || []); })
+        .catch(() => {
+          if (cancelled) return;
+          const ql = q.toLowerCase();
+          setSearchResults(incidents.filter(i => `${i.roadway_name || ""} ${i.description || ""} ${i.details || ""}`.toLowerCase().includes(ql)));
+        });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   function handleSelectIncident(incident) {
     setSelectedIncident(incident);
@@ -343,45 +369,18 @@ function App() {
 
   const recentIncidents = incidents.slice(0, 5);
 
-  let processedList = [...incidents];
-  if (listFilter !== "ALL") {
-    processedList = processedList.filter(i => 
-      (i.description && i.description.toUpperCase().includes(listFilter)) || 
-      (i.details && i.details.toUpperCase().includes(listFilter))
-    );
+  // when searching, keep the search relevance order; otherwise newest first
+  const isSearching = searchResults !== null;
+  let processedList = isSearching ? [...searchResults] : [...incidents];
+  if (!isSearching) {
+    processedList.sort((a, b) => {
+      const dateA = new Date(a.start_dt || 0);
+      const dateB = new Date(b.start_dt || 0);
+      return dateB - dateA;
+    });
   }
-  processedList.sort((a, b) => {
-    const dateA = new Date(a.start_dt || 0);
-    const dateB = new Date(b.start_dt || 0);
-    return dateB - dateA;
-  });
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5rem', fontFamily: font, fontWeight: 800 }}>Loading traffic data....</div>;
-
-  const filterBtn = (label) => {
-    const isActive = listFilter === label;
-    return (
-      <button 
-        onClick={() => setListFilter(label)}
-        style={{ 
-          background: isActive ? "#d64545" : "white", 
-          color: isActive ? "white" : "#555", 
-          border: "3px solid #222", 
-          borderRadius: "20px", 
-          padding: "6px 18px", 
-          fontWeight: 800, 
-          fontSize: "0.85rem", 
-          cursor: "pointer", 
-          fontFamily: font,
-          transition: "all 0.2s ease-in-out",
-          boxShadow: "4px 4px 0px rgba(0,0,0,0.8)",
-          transform: isActive ? "translateY(2px)" : "translateY(0px)"
-        }}
-      >
-        {label}
-      </button>
-    );
-  };
 
   // Map Controls
   const handleMake2D = () => {
@@ -482,8 +481,20 @@ function App() {
           <div style={{ padding: "100px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
             
             <div style={{ marginBottom: "40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-                {["ALL", "SW", "SE", "DOWNTOWN", "NW", "NE"].map(f => filterBtn(f))}
+              <div style={{ position: "relative", width: "100%", maxWidth: "520px" }}>
+                <div style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", display: "flex", pointerEvents: "none" }}>
+                  <IconSearch size={20} color="#555" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search roads or locations..."
+                  style={{ width: "100%", boxSizing: "border-box", padding: "12px 46px 12px 46px", border: "3px solid #222", borderRadius: "20px", fontSize: "1rem", fontWeight: 700, fontFamily: font, color: "#222", background: "white", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", outline: "none" }}
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} title="Clear" style={{ ...closeBtnStyle, position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)" }} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>
+                )}
               </div>
             </div>
 
@@ -611,7 +622,7 @@ function App() {
               })}
               {processedList.length === 0 && (
                 <div style={{ textAlign: "center", fontWeight: 800, fontSize: "1.2rem", marginTop: "40px", color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
-                  No incidents found for this filter.
+                  No incidents found.
                 </div>
               )}
             </div>

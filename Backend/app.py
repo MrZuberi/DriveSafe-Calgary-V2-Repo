@@ -2,23 +2,24 @@ import os
 import math
 import time
 import json
+import difflib
+import threading
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 
 
 # creates the web server
 app = Flask(__name__)
-CORS(app) # allows frontend to talk to backend from different domains
+# allows frontend to talk to backend from different domains
+# (expose_headers lets the browser read the cache/timing headers added below)
+CORS(app, expose_headers=["X-Cache", "X-Response-Time-ms"])
 
 
 # gets api urls from environment variables (heroku config)
 CAMERAS_URL = os.getenv('CAMERAS_URL')
 # 511 Alberta events API (all of Alberta - we filter to Calgary below)
-INCIDENTS_URL = os.getenv(
-    'INCIDENTS_URL',
-    'https://511.alberta.ca/api/v2/get/event?key=709dc603417244168ea083a364cbf154&format=json'
-)
+INCIDENTS_URL = os.getenv('INCIDENTS_URL')  # set in heroku config vars (includes the api key)
 
 
 # calgary bounding box (slightly padded so Airdrie/Okotoks/Cochrane edge events still appear)
@@ -28,7 +29,169 @@ CALGARY_MIN_LON = -114.40
 CALGARY_MAX_LON = -113.75
 
 
-# stores data in memory
+# =====================================================================
+# REDIS (shared cache) - set REDIS_URL in heroku config (heroku-redis add-on does this)
+# if REDIS_URL is missing or redis is down, the app silently falls back to the in-memory cache
+# =====================================================================
+REDIS_URL = os.getenv('REDIS_URL')
+INCIDENTS_REDIS_KEY = "drivesafe:incidents:all"
+CAMERAS_REDIS_KEY = "drivesafe:cameras:all"
+
+redis_client = None
+if REDIS_URL:
+    try:
+        import redis
+        redis_kwargs = {"decode_responses": True, "socket_timeout": 1, "socket_connect_timeout": 1}
+        if REDIS_URL.startswith("rediss://"):
+            redis_kwargs["ssl_cert_reqs"] = "none"  # heroku redis uses a self-signed cert
+        redis_client = redis.from_url(REDIS_URL, **redis_kwargs)
+    except Exception as e:
+        print("redis setup failed, using memory cache only:", e)
+        redis_client = None
+
+
+# reads a json value from redis (returns None on miss or if redis is unavailable)
+def redis_get_json(key):
+    if not redis_client:
+        return None
+    try:
+        raw = redis_client.get(key)
+        return json.loads(raw) if raw else None
+    except Exception as e:
+        print("redis get failed:", e)
+        return None
+
+
+# saves a json value to redis with an expiry (ttl) in seconds
+def redis_set_json(key, value, ttl_seconds):
+    if not redis_client:
+        return
+    try:
+        redis_client.setex(key, ttl_seconds, json.dumps(value))
+    except Exception as e:
+        print("redis set failed:", e)
+
+
+# =====================================================================
+# ELASTICSEARCH (fuzzy search) - set ELASTICSEARCH_URL (or BONSAI_URL from the bonsai add-on)
+# uses plain REST calls through requests so it works with any elasticsearch version
+# =====================================================================
+ES_URL = os.getenv('ELASTICSEARCH_URL') or os.getenv('BONSAI_URL')
+ES_INDEX = "drivesafe_incidents"
+es_ready = False  # becomes True once the index exists and has been filled at least once
+
+
+def es_request(method, path, **kwargs):
+    return requests.request(method, f"{ES_URL.rstrip('/')}/{path}", timeout=5, **kwargs)
+
+
+# creates the incidents index (with a geo_point for the map) if it doesn't exist yet
+def es_ensure_index():
+    global es_ready
+    if es_ready:
+        return True
+    mapping = {
+        "mappings": {
+            "properties": {
+                "id": {"type": "keyword"},
+                "roadway_name": {"type": "text", "fields": {"raw": {"type": "keyword"}}},
+                "description": {"type": "text"},
+                "details": {"type": "text"},
+                "start_dt": {"type": "date"},
+                "modified_dt": {"type": "date"},
+                "lanes_affected": {"type": "keyword"},
+                "severity": {"type": "keyword"},
+                "location": {"type": "geo_point"}
+            }
+        }
+    }
+    r = es_request("PUT", ES_INDEX, json=mapping)
+    if r.status_code in (200, 201) or (r.status_code == 400 and "already_exists" in r.text):
+        es_ready = True
+    return es_ready
+
+
+# pushes the latest incidents into elasticsearch and removes ones that were cleared
+def index_incidents_to_es(incidents):
+    global es_ready
+    if not ES_URL:
+        return
+    try:
+        if not es_ensure_index():
+            return
+        lines = []
+        ids = []
+        for inc in incidents:
+            if inc.get("id") is None:
+                continue
+            doc = dict(inc)
+            doc["location"] = {"lat": inc["coordinates"]["lat"], "lon": inc["coordinates"]["lon"]}
+            lines.append(json.dumps({"index": {"_id": str(inc["id"])}}))
+            lines.append(json.dumps(doc))
+            ids.append(str(inc["id"]))
+        if not lines:
+            return
+        es_request("POST", f"{ES_INDEX}/_bulk?refresh=true", data="\n".join(lines) + "\n",
+                   headers={"Content-Type": "application/x-ndjson"})
+        # delete anything that is no longer an active incident
+        es_request("POST", f"{ES_INDEX}/_delete_by_query?refresh=true",
+                   json={"query": {"bool": {"must_not": {"ids": {"values": ids}}}}})
+    except Exception as e:
+        print("elasticsearch indexing failed:", e)
+
+
+# indexes in a background thread so it never slows down the api response
+def index_incidents_async(incidents):
+    if ES_URL:
+        threading.Thread(target=index_incidents_to_es, args=(incidents,), daemon=True).start()
+
+
+# fuzzy search: "deerfoot trial" still finds "Deerfoot Trail", also matches partial names as you type
+def es_search(query, limit):
+    body = {
+        "size": limit,
+        "query": {
+            "bool": {
+                "should": [
+                    {"multi_match": {
+                        "query": query,
+                        "fields": ["roadway_name^3", "description", "details"],
+                        "fuzziness": "AUTO",
+                        "prefix_length": 1
+                    }},
+                    {"match_phrase_prefix": {"roadway_name": {"query": query, "boost": 2}}}
+                ],
+                "minimum_should_match": 1
+            }
+        }
+    }
+    r = es_request("POST", f"{ES_INDEX}/_search", json=body)
+    r.raise_for_status()
+    items = []
+    for hit in r.json()["hits"]["hits"]:
+        doc = hit["_source"]
+        doc.pop("location", None)
+        items.append(doc)
+    return items
+
+
+# backup search used when elasticsearch isn't configured or is down (basic typo tolerance with difflib)
+def fallback_search(query, limit):
+    q = query.lower().strip()
+    scored = []
+    for inc in get_incidents(limit=None):
+        name = (inc.get("roadway_name") or "").lower()
+        text = " ".join(str(inc.get(k) or "") for k in ("roadway_name", "description", "details")).lower()
+        score = difflib.SequenceMatcher(None, q, name).ratio()
+        if q in text:
+            score = max(score, 0.9)
+        if score >= 0.5:
+            scored.append((score, inc))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [inc for _, inc in scored[:limit]]
+
+
+# stores data in memory (backup if redis is not available)
 cameras_cache = {"timestamp": 0, "data": []} # last got camera data
 incidents_cache = {"timestamp": 0, "data": []} #  last got incident data
 
@@ -143,13 +306,18 @@ def clean_incident_data(rec):
 
 
 
-# gets camera data from api or cache
+# gets camera data from redis, memory, or the api (in that order)
 def get_cameras():
-    # check if cache is still valid - don't hit api if we have recent data
+    # 1) redis (shared between all workers)
+    cached = redis_get_json(CAMERAS_REDIS_KEY)
+    if cached is not None:
+        return cached
+
+    # 2) in-memory backup - don't hit api if we have recent data
     if not is_cache_expired(cameras_cache, CAMERAS_CACHE_SECONDS):
         return cameras_cache["data"]
 
-    # fetch fresh data from calgary api
+    # 3) fetch fresh data from calgary api
     params = {
         "$limit": 5000  # more than enough for current dataset size
     }
@@ -158,20 +326,28 @@ def get_cameras():
     data = r.json()
     cameras = [clean_camera_data(x) for x in data if x] # clean up each camera record
     
-    # save to cache for next time
+    # save to both caches for next time
     update_cache(cameras_cache, cameras)
+    redis_set_json(CAMERAS_REDIS_KEY, cameras, CAMERAS_CACHE_SECONDS)
     return cameras
 
-# gets incident data from api or cache
+# gets incident data from redis, memory, or the 511 api (in that order)
 def get_incidents(limit=None):
-    # check if we can use cached data
-    cache_is_valid = not is_cache_expired(incidents_cache, INCIDENTS_CACHE_SECONDS)
-    if cache_is_valid and (limit is None or limit >= len(incidents_cache["data"])):
-        cached_data = incidents_cache["data"]
-        return cached_data if limit is None else cached_data[:limit] # return requested amount
+    # 1) redis - the full list is cached once and every request just slices it
+    cached = redis_get_json(INCIDENTS_REDIS_KEY)
+    if cached is not None:
+        g.cache_status = "HIT"
+        return cached if limit is None else cached[:limit]
 
-    # fetch fresh data from 511 alberta events api
+    # 2) in-memory backup (used if redis is not set up or is down)
+    if incidents_cache["timestamp"] > 0 and not is_cache_expired(incidents_cache, INCIDENTS_CACHE_SECONDS):
+        g.cache_status = "HIT-MEMORY"
+        cached_data = incidents_cache["data"]
+        return cached_data if limit is None else cached_data[:limit]
+
+    # 3) cache miss - fetch fresh data from 511 alberta events api
     # (this api returns the full list; we filter to calgary afterward)
+    g.cache_status = "MISS"
     r = requests.get(INCIDENTS_URL, timeout=20)
     r.raise_for_status() # crash if api fails
     data = r.json()
@@ -186,11 +362,30 @@ def get_incidents(limit=None):
         reverse=True
     )
     
-    # only update cache for big requests to avoid constant cache updates
-    if limit is None or limit >= 500:
-        update_cache(incidents_cache, incidents)
+    # always cache the FULL list (any limit is just a slice of it)
+    update_cache(incidents_cache, incidents)
+    redis_set_json(INCIDENTS_REDIS_KEY, incidents, INCIDENTS_CACHE_SECONDS)
+
+    # keep the search index fresh (runs in the background)
+    index_incidents_async(incidents)
     
     return incidents if limit is None else incidents[:limit]
+
+
+# adds response time + cache hit/miss headers so you can measure latency (check them in browser devtools > network)
+@app.before_request
+def start_timer():
+    g.t0 = time.perf_counter()
+
+@app.after_request
+def add_timing_headers(resp):
+    t0 = getattr(g, "t0", None)
+    if t0 is not None:
+        resp.headers["X-Response-Time-ms"] = f"{(time.perf_counter() - t0) * 1000:.1f}"
+    status = getattr(g, "cache_status", None)
+    if status:
+        resp.headers["X-Cache"] = status
+    return resp
 
 
 # simple health check to see if server is running
@@ -220,6 +415,39 @@ def get_incidents_all():
     """Return as many incidents as API allows (capped)."""
     data = get_incidents(limit=None) # no limit
     return jsonify({"count": len(data), "items": data})
+
+# fuzzy search for incidents by road / location / description
+@app.get("/api/search")
+def search_incidents():
+    """Fuzzy search incidents (typo tolerant). Uses elasticsearch when configured.
+    Query params:
+      - q (str) required, at least 2 characters
+      - limit (int) default 10
+    """
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify({"count": 0, "items": [], "engine": None})
+
+    try:
+        limit = int(request.args.get("limit", "10"))
+    except Exception:
+        limit = 10
+    limit = max(1, min(limit, 50))
+
+    # makes sure incidents are loaded (and indexed) before searching
+    get_incidents(limit=None)
+
+    items = None
+    engine = "fallback"
+    if ES_URL and es_ready:
+        try:
+            items = es_search(query, limit)
+            engine = "elasticsearch"
+        except Exception as e:
+            print("elasticsearch search failed, using fallback:", e)
+    if items is None:
+        items = fallback_search(query, limit)
+    return jsonify({"count": len(items), "items": items, "engine": engine})
 
 # returns list of traffic cameras
 @app.get("/api/cameras")
