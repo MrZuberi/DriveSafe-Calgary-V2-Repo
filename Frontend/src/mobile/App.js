@@ -7,6 +7,7 @@ const maplibregl = window.maplibregl;
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://drivesafecalgary-13a17c07f5d1.herokuapp.com";
 const CALGARY_CENTER = [-114.0719, 51.0447];
+const RESET_ZOOM = 9.4; // zoom used by the Reset View button (a bit further out than the default 10)
 
 const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Nunito', system-ui, sans-serif";
 
@@ -112,6 +113,14 @@ function timeAgo(value) {
   const hrs = Math.round(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.round(hrs / 24)}d ago`;
+}
+
+function isToday(value) {
+  if (!value) return false;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return false;
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
 }
 
 function FormattedDescription({ text }) {
@@ -228,15 +237,15 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
       bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
 
       const el = document.createElement("div");
-      el.style.width = "30px";
-      el.style.height = "30px";
+      el.style.width = "36px";
+      el.style.height = "36px";
       el.style.display = "flex";
       el.style.alignItems = "flex-end";
       el.style.justifyContent = "center";
       el.style.cursor = "pointer";
       el.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; transform-origin: 50% 100%; transition: transform 0.25s ease; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));">
-          <path d="M12 2C7.58 2 4 5.58 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58 16.42 2 12 2Z" fill="#d64545"/>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; transform-origin: 50% 100%; transition: transform 0.25s ease; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));">
+          <path d="M12 2C7.58 2 4 5.58 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58 16.42 2 12 2Z" fill="#d64545" stroke="white" stroke-width="1.2"/>
           <circle cx="12" cy="10" r="4" fill="white"/>
         </svg>
       `;
@@ -284,11 +293,11 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
   }, [selectedIncident]);
 
   useEffect(() => {
-    const handleZoomOut = () => {
+    const handleZoomOut = (e) => {
       if (map.current) {
         map.current.flyTo({
           center: CALGARY_CENTER,
-          zoom: 10.0,
+          zoom: (e && e.detail && e.detail.zoom) || 10.0,
           pitch: 45,
           bearing: 0,
           padding: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -313,8 +322,8 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
 const SNAPS = ["peek", "half", "full"];
 const PEEK_HEIGHT = 76;
 
-function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, children }) {
-  const heights = { peek: PEEK_HEIGHT, half: Math.round(vh * 0.52), full: vh - 56 };
+function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, peekH = PEEK_HEIGHT, children }) {
+  const heights = { peek: peekH, half: Math.round(vh * 0.52), full: vh - 56 };
   const [dragH, setDragH] = useState(null);
   const drag = useRef(null);
   const target = heights[snap];
@@ -520,8 +529,11 @@ function App() {
     setSelectedIncident(null);
     setNearestCameras([]);
     setIs3D(true);
-    window.dispatchEvent(new Event("zoomOutFromIncident"));
+    window.dispatchEvent(new CustomEvent("zoomOutFromIncident", { detail: { zoom: RESET_ZOOM } }));
   };
+
+  // the map only shows incidents from today
+  const todayIncidents = incidents.filter(i => isToday(i.start_dt));
 
   // when searching, keep the search relevance order; otherwise newest first
   const isSearching = searchResults !== null;
@@ -583,6 +595,7 @@ function App() {
     </div>
   ) : (
     <div style={{ padding: "2px 16px 10px 16px" }}>
+      <div style={{ fontFamily: font, fontSize: 24, fontWeight: 800, lineHeight: 1.15, color: COLORS.text, whiteSpace: "nowrap", margin: "0 0 10px 0" }}>Weekly Traffic Incidents</div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.fill, borderRadius: 12, padding: "0 12px", height: 44 }}>
         <IconSearch size={18} color={COLORS.sub} />
         <input
@@ -635,12 +648,14 @@ function App() {
 
   const listBody = (
     <div>
-      {processedList.map((inc, i) => (
+      {processedList.map((inc, i) => {
+        const onMap = isToday(inc.start_dt);
+        return (
         <div
           key={inc.id}
-          className="ds-row"
-          onClick={() => handleSelectIncident(inc)}
-          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: "pointer" }}
+          className={onMap ? "ds-row" : undefined}
+          onClick={onMap ? () => handleSelectIncident(inc) : undefined}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: onMap ? "pointer" : "default" }}
         >
           <div style={{ width: 40, height: 40, borderRadius: "50%", background: COLORS.red, color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <IconCar size={20} color="white" />
@@ -649,7 +664,7 @@ function App() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{orNA(inc.roadway_name)}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 2, color: COLORS.sub, fontSize: 13, flexShrink: 0 }}>
-                {timeAgo(inc.start_dt)} <IconChevronRight size={14} color="#c4c4c7" />
+                {timeAgo(inc.start_dt)} {onMap && <IconChevronRight size={14} color="#c4c4c7" />}
               </div>
             </div>
             <div style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -657,7 +672,8 @@ function App() {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
       {processedList.length === 0 && (
         <div style={{ textAlign: "center", color: COLORS.sub, fontWeight: 600, padding: "40px 20px" }}>No incidents found.</div>
       )}
@@ -738,7 +754,7 @@ function App() {
       {/* MAP */}
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <Map3D
-          incidents={incidents}
+          incidents={todayIncidents}
           selectedIncident={selectedIncident}
           onSelectIncident={handleSelectIncident}
           onMapLoad={(mapInstance) => { mapRef.current = mapInstance; }}
@@ -797,7 +813,7 @@ function App() {
       </div>
 
       {/* BOTTOM SHEET */}
-      <BottomSheet snap={snap} onSnap={setSnap} vh={vh} wide={wide} grab={grabContent} sticky={stickyContent}>
+      <BottomSheet snap={snap} onSnap={setSnap} vh={vh} wide={wide} grab={grabContent} sticky={stickyContent} peekH={inDetails ? PEEK_HEIGHT : 114}>
         {sheetBody}
       </BottomSheet>
 

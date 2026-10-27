@@ -92,6 +92,14 @@ function timeAgoShort(value) {
   return `${Math.round(hrs / 24)}d`;
 }
 
+function isToday(value) {
+  if (!value) return false;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return false;
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+
 function FormattedDescription({ text }) {
   const safeText = orNA(text);
   if (safeText === "No Details") return <span>No Details</span>;
@@ -351,7 +359,9 @@ function App() {
     }, 900);
   }
 
-  const recentIncidents = incidents.slice(0, 5);
+  // the map (and the latest incidents panel on it) only shows incidents from today
+  const todayIncidents = incidents.filter(i => isToday(i.start_dt));
+  const recentIncidents = todayIncidents.slice(0, 5);
 
   // when searching, keep the search relevance order; otherwise newest first
   const isSearching = searchResults !== null;
@@ -427,7 +437,7 @@ function App() {
         transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out"
       }}>
         <Map3D 
-          incidents={incidents} 
+          incidents={todayIncidents} 
           selectedIncident={selectedIncident} 
           onSelectIncident={handleSelectIncident} 
           onMapLoad={(mapInstance) => { mapRef.current = mapInstance; }}
@@ -465,6 +475,7 @@ function App() {
           <div style={{ padding: "100px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
             
             <div style={{ marginBottom: "40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ fontFamily: font, fontSize: "24px", fontWeight: 800, lineHeight: 1.15, color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.5)", whiteSpace: "nowrap", margin: "0 0 16px 0", textAlign: "center" }}>Weekly Traffic Incidents</div>
               <div style={{ position: "relative", width: "100%", maxWidth: "520px" }}>
                 <div style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", display: "flex", pointerEvents: "none" }}>
                   <IconSearch size={20} color="#555" />
@@ -521,6 +532,7 @@ function App() {
                       </div>
                       
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        {isToday(incident.start_dt) && (
                         <div 
                           onClick={(e) => {
                             e.stopPropagation(); 
@@ -544,6 +556,7 @@ function App() {
                         >
                           <IconMapPin size={18} color="#d64545" />
                         </div>
+                        )}
 
                         <div style={{
                           width: "36px",
