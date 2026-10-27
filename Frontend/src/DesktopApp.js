@@ -12,6 +12,10 @@ const CALGARY_CENTER = [-114.0719, 51.0447];
 
 const font = "'Nunito', sans-serif";
 
+// The Esri Satellite Style URL
+const ESRI_SATELLITE_STYLE = "https://tiles.arcgis.com/tiles/xxxx/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"; 
+const ESRI_OFFICIAL_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"; 
+
 // --- COOLICONS VECTOR SVGs ---
 const IconMapPin = ({ size = 20, color = "currentColor", style = {} }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
@@ -132,9 +136,10 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
+    // Using the ESRI Official Satellite Style URL
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json", // Fallback, but we will try to use the satellite style
       center: CALGARY_CENTER,
       zoom: 10.0, 
       pitch: 45, 
@@ -146,9 +151,31 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       onMapLoad(m);
     }
 
-    // Keep the street map (Carto Voyager). No setStyle override.
+    // Attempt to set the satellite style (this is the public Esri World Imagery style)
     m.on("load", () => {
       m.resize();
+      m.setStyle("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
+      
+      // 3D buildings commented out because satellite imagery looks better flat
+      /*
+      if (!m.getLayer("3d-buildings")) {
+        try {
+          const sources = m.getStyle().sources;
+          const vectorSource = Object.keys(sources).find((k) => sources[k].type === "vector");
+          if (vectorSource) {
+            m.addLayer({
+              id: "3d-buildings", source: vectorSource, "source-layer": "building", type: "fill-extrusion", minzoom: 13,
+              paint: {
+                "fill-extrusion-color": ["step", ["coalesce", ["get", "render_height"], 10], "#FFD1D1", 15, "#85B8F0", 50, "#B5D8FF"],
+                "fill-extrusion-height": ["coalesce", ["get", "render_height"], 10],
+                "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+                "fill-extrusion-opacity": 0.95,
+              },
+            });
+          }
+        } catch (e) { console.warn("3D buildings layer failed:", e); }
+      }
+      */
     });
 
     m.on("error", (e) => console.warn("Map error:", e.error || e));
@@ -178,6 +205,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       hasPoints = true;
       bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
       
+      // Custom Red Teardrop Marker
       const el = document.createElement("div");
       el.innerHTML = `
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor: pointer; filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.5));">
@@ -205,6 +233,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   useEffect(() => {
     if (map.current && selectedIncident?.coordinates) {
       map.current.stop(); 
+      // Smooth Fly To animation
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
         zoom: 15, 
@@ -220,6 +249,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   useEffect(() => {
     const handleZoomOut = () => {
       if (map.current) {
+        // Smooth Fly Out animation
         map.current.flyTo({ 
           center: CALGARY_CENTER,
           zoom: 10.0, 
@@ -530,8 +560,9 @@ function App() {
                       </div>
                     </div>
                     
-                    {isOpen && (
-                      <div style={{ padding: "0 24px 24px 24px", animation: "fadeIn 0.3s ease-in-out", fontFamily: font }}>
+                    <div style={{ display: "grid", gridTemplateRows: isOpen ? "1fr" : "0fr", transition: "grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+                    <div style={{ overflow: "hidden", minHeight: 0 }}>
+                      <div style={{ padding: "0 24px 24px 24px", fontFamily: font, opacity: isOpen ? 1 : 0, transform: isOpen ? "translateY(0)" : "translateY(-8px)", transition: "opacity 0.3s ease-in-out, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>
                         
                          <div style={{ marginBottom: "20px", fontSize: "0.95rem", color: "#2d3748", lineHeight: "1.6" }}>
                             <FormattedDescription text={incident.description} />
@@ -563,7 +594,8 @@ function App() {
                          </div>
 
                       </div>
-                    )}
+                    </div>
+                    </div>
                   </div>
                 );
               })}
