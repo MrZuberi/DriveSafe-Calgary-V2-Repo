@@ -11,7 +11,6 @@ const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://drivesafecalg
 const CALGARY_CENTER = [-114.0719, 51.0447];
 
 const font = "'Nunito', sans-serif";
-const cloudBackground = "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?q=80&w=2000&auto=format&fit=crop";
 
 // The Esri Satellite Style URL
 const ESRI_SATELLITE_STYLE = "https://tiles.arcgis.com/tiles/xxxx/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"; 
@@ -424,16 +423,23 @@ function App() {
   return (
     <div style={{ height: "100vh", width: "100vw", overflow: "hidden", position: "relative", fontFamily: font }}>
       
-      {activePage === "map" && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
-          <Map3D 
-            incidents={incidents} 
-            selectedIncident={selectedIncident} 
-            onSelectIncident={handleSelectIncident} 
-            onMapLoad={(mapInstance) => { mapRef.current = mapInstance; }}
-          />
-        </div>
-      )}
+      {/* MAP STAYS MOUNTED (just hidden) SO SWITCHING PAGES IS SMOOTH */}
+      <div style={{ 
+        position: "absolute", 
+        inset: 0, 
+        zIndex: 1,
+        opacity: activePage === "map" ? 1 : 0,
+        visibility: activePage === "map" ? "visible" : "hidden",
+        pointerEvents: activePage === "map" ? "auto" : "none",
+        transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out"
+      }}>
+        <Map3D 
+          incidents={incidents} 
+          selectedIncident={selectedIncident} 
+          onSelectIncident={handleSelectIncident} 
+          onMapLoad={(mapInstance) => { mapRef.current = mapInstance; }}
+        />
+      </div>
 
       {/* BOTTOM LEFT MAP CONTROLS */}
       {activePage === "map" && (
@@ -451,26 +457,21 @@ function App() {
         </div>
       )}
 
-      {/* LIST PAGE (CLOUD BACKGROUND & CLAY STYLE) */}
+      {/* LIST PAGE (SAME BACKGROUND AS ABOUT PAGE) */}
       {activePage === "list" && (
         <div style={{ 
           position: "absolute", 
           inset: 0, 
           zIndex: 1, 
-          overflowY: "auto", 
-          backgroundImage: `url(${cloudBackground})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed"
+          overflowY: "auto",
+          animation: "fadeIn 0.3s ease-in-out"
         }}>
+          {/* Blurred background - oversized so the blur has no faded border at the edges */}
+          <div style={{ position: "fixed", inset: "-40px", backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(4px)", zIndex: -1 }}></div>
           
-          <div style={{ padding: "140px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
+          <div style={{ padding: "100px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
             
             <div style={{ marginBottom: "40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <h1 style={{ fontSize: "2.5rem", fontWeight: 900, margin: "0 0 20px 0", color: "#1a202c", letterSpacing: "-0.5px", textTransform: "uppercase", textShadow: "0 2px 4px rgba(255,255,255,0.8)" }}>
-                Traffic Incidents
-              </h1>
-              
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
                 {["ALL", "SW", "SE", "DOWNTOWN", "NW", "NE"].map(f => filterBtn(f))}
               </div>
@@ -483,8 +484,7 @@ function App() {
                   <div 
                     key={incident.id} 
                     style={{ 
-                      background: "rgba(255, 255, 255, 0.95)", 
-                      backdropFilter: "blur(10px)", 
+                      background: "white", 
                       borderRadius: "16px", 
                       overflow: "hidden", 
                       transition: "transform 0.2s ease-in-out", 
@@ -608,8 +608,9 @@ function App() {
       )}
 
       {activePage === "about" && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto" }}>
-          <div style={{ position: "fixed", inset: 0, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
+        <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto", animation: "fadeIn 0.3s ease-in-out" }}>
+          {/* Oversized so the blur has no faded border at the edges */}
+          <div style={{ position: "fixed", inset: "-40px", backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "20px" }}>
             <div style={{ background: "white", borderRadius: "24px", padding: "40px", maxWidth: "800px", width: "100%", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)", transition: "transform 0.2s ease-in-out" }}>
               <h1 style={{ fontSize: "2.5rem", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px 0", color: "#222" }}>About DriveSafe Calgary.</h1>
