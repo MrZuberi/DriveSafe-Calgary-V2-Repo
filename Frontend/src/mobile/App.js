@@ -1,63 +1,86 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import './App.css';
-import driveGif from "./drive.gif";
-import image1 from "./../image1.jpg"; 
+import './App.css'; 
+import driveGif from "../drive.gif"; 
 
 const maplibregl = window.maplibregl;
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://drivesafecalgary-13a17c07f5d1.herokuapp.com";
 const CALGARY_CENTER = [-114.0719, 51.0447];
 
-const font = "'Nunito', sans-serif";
+const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Nunito', system-ui, sans-serif";
 
-// --- COOLICONS VECTOR SVGs ---
-const IconMapPin = ({ size = 20, color = "currentColor", style = {} }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
-    <path d="M12 21C12 21 19 15.5 19 10C19 6.13401 15.866 3 12 3C8.13401 3 5 6.13401 5 10C5 15.5 12 21 12 21Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="12" cy="10" r="2.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
+const COLORS = {
+  red: "#d64545",
+  blue: "#007AFF",
+  text: "#1c1c1e",
+  sub: "#6e6e73",
+  line: "rgba(60,60,67,0.18)",
+  fill: "rgba(118,118,128,0.12)",
+};
 
-const IconVideo = ({ size = 20, color = "currentColor", style = {} }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
-    <path d="M15 10L19.553 7.724C20.217 7.392 21 7.875 21 8.618V15.382C21 16.125 20.217 16.608 19.553 16.276L15 14V10Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <rect x="3" y="6" width="12" height="12" rx="2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
+const GLASS = {
+  background: "rgba(255,255,255,0.86)",
+  backdropFilter: "blur(24px) saturate(180%)",
+  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+};
 
-const IconChevronDown = ({ size = 20, color = "currentColor", style = {} }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
-    <path d="M6 9L12 15L18 9" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+const GLOBAL_CSS = `
+  .ds-press { transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease; -webkit-tap-highlight-color: transparent; }
+  .ds-press:active { transform: scale(0.94); }
+  .ds-row { -webkit-tap-highlight-color: transparent; transition: background 0.15s ease; }
+  .ds-row:active { background: rgba(0,0,0,0.06); }
+  .ds-scroll::-webkit-scrollbar { display: none; }
+  .ds-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+  @keyframes ds-spin { to { transform: rotate(360deg); } }
+  @keyframes ds-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  button { font-family: inherit; }
+`;
+
+// ---------- ICONS ----------
+const Svg = ({ size = 20, children, style }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>{children}</svg>
 );
+const sp = { strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
 
 const IconSearch = ({ size = 20, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="11" cy="11" r="6.5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M16 16L20 20" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+  <Svg size={size}>
+    <circle cx="11" cy="11" r="6.5" stroke={color} {...sp} />
+    <path d="M16 16L20 20" stroke={color} {...sp} />
+  </Svg>
+);
+const IconInfo = ({ size = 20, color = "currentColor" }) => (
+  <Svg size={size}>
+    <circle cx="12" cy="12" r="9" stroke={color} {...sp} />
+    <path d="M12 11V16" stroke={color} {...sp} />
+    <circle cx="12" cy="8" r="0.6" fill={color} stroke={color} strokeWidth="1" />
+  </Svg>
+);
+const IconClose = ({ size = 18, color = "currentColor" }) => (
+  <Svg size={size}><path d="M6 6L18 18M18 6L6 18" stroke={color} {...sp} /></Svg>
+);
+const IconReset = ({ size = 20, color = "currentColor" }) => (
+  <Svg size={size}>
+    <path d="M4 12A8 8 0 1 0 6.3 6.3" stroke={color} {...sp} />
+    <path d="M4 4V8.5H8.5" stroke={color} {...sp} />
+  </Svg>
+);
+const IconChevronRight = ({ size = 16, color = "currentColor" }) => (
+  <Svg size={size}><path d="M9 6L15 12L9 18" stroke={color} {...sp} /></Svg>
+);
+const IconChevronLeft = ({ size = 18, color = "currentColor" }) => (
+  <Svg size={size}><path d="M15 6L9 12L15 18" stroke={color} {...sp} /></Svg>
+);
+const IconCar = ({ size = 18, color = "currentColor" }) => (
+  <Svg size={size}>
+    <path d="M5 16V11L7 6H17L19 11V16" stroke={color} {...sp} />
+    <rect x="3" y="11" width="18" height="6" rx="2" stroke={color} {...sp} />
+    <circle cx="7.5" cy="14" r="0.6" fill={color} stroke={color} strokeWidth="1" />
+    <circle cx="16.5" cy="14" r="0.6" fill={color} stroke={color} strokeWidth="1" />
+  </Svg>
 );
 
-const IconPlus = ({ size = 24, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 5V19M5 12H19" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const IconMinus = ({ size = 24, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M5 12H19" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-// -----------------------------
-
-// Start downloading + decoding the background image immediately so it is ready before the List page opens
-const preloadBg = new Image();
-preloadBg.src = image1;
-if (preloadBg.decode) preloadBg.decode().catch(() => {});
-
+// ---------- HELPERS ----------
 function orNA(value) {
   if (value === null || value === undefined) return "No Details";
   const s = String(value).trim();
@@ -79,22 +102,22 @@ function formatDateTime(value) {
   return d.toLocaleString();
 }
 
-function timeAgoShort(value) {
+function timeAgo(value) {
   if (!value) return "";
   const d = new Date(value);
   if (isNaN(d.getTime())) return "";
   const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
   if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
+  if (mins < 60) return `${mins}m ago`;
   const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.round(hrs / 24)}d`;
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
 }
 
 function FormattedDescription({ text }) {
   const safeText = orNA(text);
   if (safeText === "No Details") return <span>No Details</span>;
-  
+
   const formatted = safeText
     .replace(/(Activities:|Speed Restriction:|Details:|Directions:)/gi, "\n$1")
     .split("\n")
@@ -104,57 +127,60 @@ function FormattedDescription({ text }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       {formatted.map((paragraph, idx) => {
         const match = paragraph.trim().match(/^(Activities:|Speed Restriction:|Details:|Directions:)(.*)/i);
-        
         if (match) {
           return (
-            <div key={idx} style={{ fontWeight: 600 }}>
-              <strong style={{ fontWeight: 900 }}>{match[1]}</strong>{match[2]}
+            <div key={idx}>
+              <strong style={{ fontWeight: 700 }}>{match[1]}</strong>{match[2]}
             </div>
           );
         }
-        
-        return (
-          <div key={idx} style={{ fontWeight: 600 }}>
-            {paragraph.trim()}
-          </div>
-        );
+        return <div key={idx}>{paragraph.trim()}</div>;
       })}
     </div>
   );
 }
 
-function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
+function useViewport() {
+  const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const update = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+  return vp;
+}
+
+// ---------- MAP ----------
+function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddingRef }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef([]);
+  const markerEls = useRef({});
   const onSelectRef = useRef(onSelectIncident);
+  const hasFitBounds = useRef(false);
   onSelectRef.current = onSelectIncident;
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    // Using the ESRI Official Satellite Style URL
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json", // Fallback, but we will try to use the satellite style
+      style: "https://tiles.openfreemap.org/styles/bright",
       center: CALGARY_CENTER,
-      zoom: 10.0, 
-      pitch: 45, 
+      zoom: 10.0,
+      pitch: 45,
       bearing: 0,
+      attributionControl: { compact: true },
     });
     map.current = m;
-    
-    if (onMapLoad) {
-      onMapLoad(m);
-    }
+    if (onMapLoad) onMapLoad(m);
 
-    // Attempt to set the satellite style (this is the public Esri World Imagery style)
     m.on("load", () => {
       m.resize();
-      m.setStyle("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
-      
-      // 3D buildings commented out because satellite imagery looks better flat
-      /*
       if (!m.getLayer("3d-buildings")) {
         try {
           const sources = m.getStyle().sources;
@@ -172,7 +198,6 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
           }
         } catch (e) { console.warn("3D buildings layer failed:", e); }
       }
-      */
     });
 
     m.on("error", (e) => console.warn("Map error:", e.error || e));
@@ -181,71 +206,100 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       markers.current.forEach((mk) => mk.remove());
       markers.current = [];
       m.remove();
-      map.current = null; 
-      if (onMapLoad) {
-        onMapLoad(null);
-      }
+      map.current = null;
+      if (onMapLoad) onMapLoad(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Markers
   useEffect(() => {
     if (!map.current) return;
     markers.current.forEach((mk) => mk.remove());
     markers.current = [];
+    markerEls.current = {};
+
+    const bounds = new maplibregl.LngLatBounds();
+    let hasPoints = false;
 
     incidents.forEach((incident) => {
       if (!incident.coordinates) return;
-      // Custom Red Teardrop Marker
+      hasPoints = true;
+      bounds.extend([incident.coordinates.lon, incident.coordinates.lat]);
+
       const el = document.createElement("div");
+      el.style.width = "30px";
+      el.style.height = "30px";
+      el.style.display = "flex";
+      el.style.alignItems = "flex-end";
+      el.style.justifyContent = "center";
+      el.style.cursor = "pointer";
       el.innerHTML = `
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor: pointer; filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.5));">
-          <path d="M12 2C7.58172 2 4 5.58172 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58172 16.4183 2 12 2Z" fill="#d64545"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; transform-origin: 50% 100%; transition: transform 0.25s ease; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));">
+          <path d="M12 2C7.58 2 4 5.58 4 10C4 16 12 22 12 22C12 22 20 16 20 10C20 5.58 16.42 2 12 2Z" fill="#d64545"/>
           <circle cx="12" cy="10" r="4" fill="white"/>
         </svg>
       `;
-      
-      el.addEventListener("click", () => onSelectRef.current({ ...incident }));
-      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      el.addEventListener("click", (e) => { e.stopPropagation(); onSelectRef.current({ ...incident }); });
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
         .setLngLat([incident.coordinates.lon, incident.coordinates.lat])
         .addTo(map.current);
       markers.current.push(marker);
+      markerEls.current[incident.id] = el;
     });
+
+    if (!hasFitBounds.current && hasPoints && !bounds.isEmpty()) {
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const expandedBounds = new maplibregl.LngLatBounds([sw.lng - 0.05, sw.lat - 0.05], [ne.lng + 0.05, ne.lat + 0.05]);
+      map.current.fitBounds(expandedBounds, { padding: { top: 60, bottom: 60, left: 30, right: 30 }, pitch: 45, maxZoom: 10.0 });
+      hasFitBounds.current = true;
+    }
   }, [incidents]);
 
+  // Highlight selected marker
+  useEffect(() => {
+    Object.entries(markerEls.current).forEach(([id, el]) => {
+      const svg = el.firstElementChild;
+      if (svg) svg.style.transform = selectedIncident && String(selectedIncident.id) === String(id) ? "scale(1.3)" : "scale(1)";
+    });
+  }, [selectedIncident, incidents]);
+
+  // Fly to selected incident (offset so it sits above the sheet)
   useEffect(() => {
     if (map.current && selectedIncident?.coordinates) {
-      map.current.stop(); 
-      // Smooth Fly To animation
+      map.current.stop();
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
-        zoom: 15, 
-        pitch: 60, 
-        bearing: -20, 
-        speed: 1.2, 
-        curve: 1.5,
-        essential: true
+        zoom: 15,
+        pitch: 55,
+        bearing: -20,
+        speed: 1.2,
+        curve: 1.4,
+        padding: paddingRef.current,
+        essential: true,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIncident]);
 
   useEffect(() => {
     const handleZoomOut = () => {
       if (map.current) {
-        // Smooth Fly Out animation
-        map.current.flyTo({ 
+        map.current.flyTo({
           center: CALGARY_CENTER,
-          zoom: 10.0, 
-          pitch: 45, 
+          zoom: 10.0,
+          pitch: 45,
           bearing: 0,
+          padding: { top: 0, bottom: 0, left: 0, right: 0 },
           speed: 1.2,
-          curve: 1.5,
-          essential: true
+          curve: 1.4,
+          essential: true,
         });
       }
     };
-    window.addEventListener('zoomOutFromIncident', handleZoomOut);
-    return () => window.removeEventListener('zoomOutFromIncident', handleZoomOut);
+    window.addEventListener("zoomOutFromIncident", handleZoomOut);
+    return () => window.removeEventListener("zoomOutFromIncident", handleZoomOut);
   }, []);
 
   return (
@@ -255,33 +309,146 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   );
 }
 
+// ---------- BOTTOM SHEET (Apple Maps style) ----------
+const SNAPS = ["peek", "half", "full"];
+const PEEK_HEIGHT = 76;
+
+function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, children }) {
+  const heights = { peek: PEEK_HEIGHT, half: Math.round(vh * 0.52), full: vh - 56 };
+  const [dragH, setDragH] = useState(null);
+  const drag = useRef(null);
+  const target = heights[snap];
+  const h = dragH !== null ? dragH : target;
+  const clamp = (v) => Math.max(heights.peek, Math.min(heights.full, v));
+
+  const onDown = (e) => {
+    if (wide) return;
+    drag.current = { el: e.currentTarget, id: e.pointerId, y: e.clientY, h: target, ly: e.clientY, lt: e.timeStamp, v: 0, moved: false };
+  };
+  const onMove = (e) => {
+    const s = drag.current;
+    if (!s) return;
+    const dy = s.y - e.clientY;
+    if (!s.moved && Math.abs(dy) > 6) {
+      s.moved = true;
+      try { s.el.setPointerCapture(s.id); } catch (err) { /* ignore */ }
+    }
+    if (!s.moved) return;
+    const dt = e.timeStamp - s.lt;
+    if (dt > 0) s.v = (s.ly - e.clientY) / dt;
+    s.ly = e.clientY;
+    s.lt = e.timeStamp;
+    setDragH(clamp(s.h + dy));
+  };
+  const onUp = (e) => {
+    const s = drag.current;
+    if (!s) return;
+    drag.current = null;
+    if (!s.moved) {
+      if (snap === "peek") onSnap("half");
+      return;
+    }
+    const cur = clamp(s.h + s.y - e.clientY);
+    let next;
+    if (Math.abs(s.v) > 0.4) {
+      const i = SNAPS.indexOf(snap);
+      next = SNAPS[Math.max(0, Math.min(2, i + (s.v > 0 ? 1 : -1)))];
+    } else {
+      next = SNAPS.reduce((a, b) => (Math.abs(heights[a] - cur) < Math.abs(heights[b] - cur) ? a : b));
+    }
+    setDragH(null);
+    onSnap(next);
+  };
+
+  const base = {
+    position: "absolute",
+    zIndex: 20,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    ...GLASS,
+    boxShadow: "0 -4px 30px rgba(0,0,0,0.22)",
+    fontFamily: font,
+    color: COLORS.text,
+  };
+
+  const style = wide
+    ? { ...base, left: 12, top: "calc(env(safe-area-inset-top, 0px) + 12px)", bottom: 12, width: 380, borderRadius: 20, boxShadow: "0 8px 40px rgba(0,0,0,0.28)" }
+    : {
+        ...base,
+        left: 0, right: 0, bottom: 0,
+        height: `calc(${h}px + env(safe-area-inset-bottom, 0px))`,
+        maxHeight: "calc(100% - 44px)",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        transition: dragH !== null ? "none" : "height 0.38s cubic-bezier(0.22, 0.9, 0.3, 1)",
+      };
+
+  return (
+    <div style={style}>
+      <div
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none", flexShrink: 0 }}
+      >
+        {!wide && (
+          <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 6px 0" }}>
+            <div style={{ width: 36, height: 5, borderRadius: 3, background: "rgba(60,60,67,0.3)" }} />
+          </div>
+        )}
+        {wide && <div style={{ height: 12 }} />}
+        {grab}
+      </div>
+      <div style={{ flexShrink: 0 }}>{sticky}</div>
+      <div
+        className="ds-scroll"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: snap === "peek" && !wide ? "hidden" : "auto",
+          overscrollBehavior: "contain",
+          WebkitOverflowScrolling: "touch",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ---------- APP ----------
 function App() {
-  const [activePage, setActivePage] = useState("map"); 
+  const { w: vw, h: vh } = useViewport();
+  const wide = vw >= 700;
+
   const [incidents, setIncidents] = useState([]);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [nearestCameras, setNearestCameras] = useState([]);
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
   const [isLoadingCameras, setIsLoadingCameras] = useState(false);
-  
-  const [showCameraCard, setShowCameraCard] = useState(true);
-  const [showDetailsCard, setShowDetailsCard] = useState(true);
-
-  const [showImageModal, setShowImageModal] = useState(null);
+  const [activeTab, setActiveTab] = useState("details");
   const [isLoading, setIsLoading] = useState(true);
-  const mapRef = useRef(null);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState(null); // null = not searching
-  const [expandedCard, setExpandedCard] = useState(null);
+  const [snap, setSnap] = useState("peek");
   const [showAbout, setShowAbout] = useState(false);
+  const [is3D, setIs3D] = useState(true);
+
+  const mapRef = useRef(null);
+  const paddingRef = useRef({ top: 0, bottom: 0, left: 0, right: 0 });
+
+  paddingRef.current = wide
+    ? { top: 0, bottom: 0, left: 392, right: 0 }
+    : { top: 90, bottom: Math.round(vh * 0.52), left: 0, right: 0 };
 
   function loadIncidents() {
-    axios.get(`${API_BASE_URL}/api/incidents?limit=100`).then(res => {
+    axios.get(`${API_BASE_URL}/api/incidents?limit=500`).then(res => {
       if (res.data?.items) {
         const clean = res.data.items.filter(i => i.coordinates?.lat && i.coordinates?.lon);
-        setIncidents(prev => (
-          prev.length === clean.length && prev.every((p, idx) => p.id === clean[idx].id && p.modified_dt === clean[idx].modified_dt)
-        ) ? prev : clean);
+        setIncidents(clean);
       }
       setIsLoading(false);
     }).catch(() => setIsLoading(false));
@@ -308,19 +475,18 @@ function App() {
   }, [searchQuery]);
 
   function handleSelectIncident(incident) {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     setSelectedIncident(incident);
     setActiveCameraIndex(0);
     setNearestCameras([]);
-    setActivePage("map"); 
-    
-    setShowCameraCard(true);
-    setShowDetailsCard(true);
-    
+    setActiveTab("details");
+    setSnap("half");
+
     if (incident?.coordinates) {
       setIsLoadingCameras(true);
       axios.get(`${API_BASE_URL}/api/nearest-cameras`, { params: { lat: incident.coordinates.lat, lon: incident.coordinates.lon, limit: 4 } })
-        .then(res => { 
-          if (res.data) setNearestCameras(res.data.items); 
+        .then(res => {
+          if (res.data) setNearestCameras(res.data.items || []);
           setIsLoadingCameras(false);
         })
         .catch(() => {
@@ -333,407 +499,365 @@ function App() {
   function handleExit() {
     setSelectedIncident(null);
     setNearestCameras([]);
-    window.dispatchEvent(new Event('zoomOutFromIncident'));
+    setSnap("half");
+    window.dispatchEvent(new Event("zoomOutFromIncident"));
   }
 
-  // Opens the default mail app; if nothing opens (no mail app set up), falls back to Gmail compose in a new tab
-  function openEmail(e) {
-    e.preventDefault();
-    const to = "taha.zuberi@ucalgary.ca";
-    let left = false;
-    const onBlur = () => { left = true; };
-    window.addEventListener("blur", onBlur, { once: true });
-    window.location.href = `mailto:${to}`;
-    setTimeout(() => {
-      window.removeEventListener("blur", onBlur);
-      if (!left) window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}`, "_blank", "noopener,noreferrer");
-    }, 900);
-  }
+  const handleToggle3D = () => {
+    const m = mapRef.current;
+    if (!m) return;
+    m.stop();
+    if (m.getPitch() > 5) {
+      m.easeTo({ pitch: 0, bearing: 0, duration: 700 });
+      setIs3D(false);
+    } else {
+      m.easeTo({ pitch: 55, duration: 700 });
+      setIs3D(true);
+    }
+  };
 
-  const recentIncidents = incidents.slice(0, 5);
+  const handleReset = () => {
+    setSelectedIncident(null);
+    setNearestCameras([]);
+    setIs3D(true);
+    window.dispatchEvent(new Event("zoomOutFromIncident"));
+  };
 
   // when searching, keep the search relevance order; otherwise newest first
   const isSearching = searchResults !== null;
   let processedList = isSearching ? [...searchResults] : [...incidents];
-  if (!isSearching) {
-    processedList.sort((a, b) => {
-      const dateA = new Date(a.start_dt || 0);
-      const dateB = new Date(b.start_dt || 0);
-      return dateB - dateA;
-    });
+  if (!isSearching) processedList.sort((a, b) => new Date(b.start_dt || 0) - new Date(a.start_dt || 0));
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, justifyContent: "center", alignItems: "center", height: "100vh", fontFamily: font, color: COLORS.sub, fontWeight: 600 }}>
+        <div style={{ width: 28, height: 28, border: "3px solid rgba(0,0,0,0.1)", borderTopColor: COLORS.red, borderRadius: "50%", animation: "ds-spin 0.8s linear infinite" }} />
+        <style>{GLOBAL_CSS}</style>
+        Loading traffic data...
+      </div>
+    );
   }
 
-  if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5rem', fontFamily: font, fontWeight: 800 }}>Loading traffic data....</div>;
-
-  // Map Controls
-  const handleMake2D = () => {
-    if (mapRef.current) {
-      mapRef.current.stop(); 
-      mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 800 });
-    }
+  // ----- shared small pieces -----
+  const roundBtn = {
+    width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
+    background: "transparent", border: "none", color: COLORS.blue, cursor: "pointer", padding: 0,
   };
 
-  const handleResetView = () => {
-    handleExit();
-    if (mapRef.current) {
-      mapRef.current.stop();
-      mapRef.current.easeTo({
-        center: CALGARY_CENTER,
-        zoom: 10.0, 
-        pitch: 45,
-        bearing: 0,
-        duration: 1000
-      });
-    }
-  };
+  const segBtn = (key, label) => (
+    <button
+      onClick={() => setActiveTab(key)}
+      style={{
+        flex: 1, padding: "7px 0", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer",
+        background: activeTab === key ? "white" : "transparent",
+        color: COLORS.text,
+        boxShadow: activeTab === key ? "0 1px 4px rgba(0,0,0,0.18)" : "none",
+        transition: "all 0.2s ease",
+      }}
+    >
+      {label}
+    </button>
+  );
 
-  const btnStyle = { 
-    background: "white", padding: "10px 16px", borderRadius: "8px", border: "3px solid #222", 
-    cursor: "pointer", fontWeight: 900, color: "#222", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", 
-    fontSize: "14px", zIndex: 50, fontFamily: font, display: "flex", alignItems: "center", justifyContent: "center",
-    transition: "all 0.2s ease-in-out"
-  };
-  
-  const zoomBtnStyle = { 
-    background: "white", width: "50px", height: "50px", borderRadius: "10px", border: "3px solid #222", 
-    cursor: "pointer", fontWeight: 900, color: "#222", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", 
-    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, fontFamily: font,
-    transition: "all 0.2s ease-in-out"
-  };
-  
-  const closeBtnStyle = { 
-    background: "transparent", 
-    border: "none", 
-    fontSize: "1.2rem", 
-    cursor: "pointer", 
-    fontWeight: 900, 
-    color: "#d64545", 
-    padding: "0 5px",
-    transition: "all 0.2s ease-in-out"
-  };
+  const inDetails = !!selectedIncident;
+
+  // ----- sheet header content -----
+  const grabContent = inDetails ? (
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "4px 16px 10px 16px" }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.15, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+          {orNA(selectedIncident.roadway_name)}
+        </div>
+        <div style={{ marginTop: 3, fontSize: 14, color: COLORS.sub, fontWeight: 500 }}>
+          {formatTime(selectedIncident.start_dt)} · {timeAgo(selectedIncident.start_dt)}
+        </div>
+      </div>
+      <button
+        className="ds-press"
+        onClick={handleExit}
+        aria-label="Close"
+        style={{ flexShrink: 0, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(118,118,128,0.2)", color: COLORS.sub, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+      >
+        <IconClose size={16} />
+      </button>
+    </div>
+  ) : (
+    <div style={{ padding: "2px 16px 10px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.fill, borderRadius: 12, padding: "0 12px", height: 44 }}>
+        <IconSearch size={18} color={COLORS.sub} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => { if (!wide) setSnap("full"); }}
+          placeholder="Search roads or locations"
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCorrect="off"
+          style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 16, fontWeight: 500, color: COLORS.text, fontFamily: font, height: "100%" }}
+        />
+        {searchQuery ? (
+          <button
+            onClick={() => setSearchQuery("")}
+            aria-label="Clear search"
+            style={{ flexShrink: 0, width: 28, height: 28, minWidth: 0, minHeight: 0, margin: "0 -4px 0 0", padding: 0, border: "none", background: "transparent", WebkitAppearance: "none", appearance: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxSizing: "border-box" }}
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>
+              <circle cx="10" cy="10" r="10" fill="#8e8e93" />
+              <path d="M6.5 6.5L13.5 13.5M13.5 6.5L6.5 13.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        ) : (
+          <div style={{ flexShrink: 0, fontSize: 13, fontWeight: 700, color: "white", background: COLORS.red, borderRadius: 10, padding: "2px 9px" }}>{incidents.length}</div>
+        )}
+      </div>
+    </div>
+  );
+
+  const stickyContent = inDetails ? (
+    <div style={{ padding: "0 16px 10px 16px" }}>
+      <div style={{ display: "flex", background: COLORS.fill, borderRadius: 10, padding: 2 }}>
+        {segBtn("details", "Details")}
+        {segBtn("cameras", "Cameras")}
+      </div>
+    </div>
+  ) : null;
+
+  // ----- sheet body -----
+  const infoRow = (label, value, last) => (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "12px 14px", borderBottom: last ? "none" : `1px solid ${COLORS.line}` }}>
+      <span style={{ fontSize: 15, color: COLORS.sub, fontWeight: 500, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 15, color: COLORS.text, fontWeight: 600, textAlign: "right" }}>{value}</span>
+    </div>
+  );
+
+  const groupCard = { background: "rgba(255,255,255,0.9)", borderRadius: 14, border: `1px solid ${COLORS.line}`, overflow: "hidden" };
+
+  const listBody = (
+    <div>
+      {processedList.map((inc, i) => (
+        <div
+          key={inc.id}
+          className="ds-row"
+          onClick={() => handleSelectIncident(inc)}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: "pointer" }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: COLORS.red, color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <IconCar size={20} color="white" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, borderBottom: i === processedList.length - 1 ? "none" : `1px solid ${COLORS.line}`, padding: "4px 0 12px 0", marginBottom: -4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{orNA(inc.roadway_name)}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 2, color: COLORS.sub, fontSize: 13, flexShrink: 0 }}>
+                {timeAgo(inc.start_dt)} <IconChevronRight size={14} color="#c4c4c7" />
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {[inc.quadrant, orNA(inc.description)].filter(Boolean).join(" · ").replace(/\s+/g, " ")}
+            </div>
+          </div>
+        </div>
+      ))}
+      {processedList.length === 0 && (
+        <div style={{ textAlign: "center", color: COLORS.sub, fontWeight: 600, padding: "40px 20px" }}>No incidents found.</div>
+      )}
+    </div>
+  );
+
+  const detailsBody = selectedIncident && (
+    <div style={{ padding: "4px 16px 0 16px", animation: "ds-fade 0.3s ease" }}>
+      <div style={groupCard}>
+        {infoRow("When", formatDateTime(selectedIncident.start_dt))}
+        {infoRow("Quadrant", orNA(selectedIncident.quadrant))}
+        {infoRow("Last updated", formatDateTime(selectedIncident.modified_dt), true)}
+      </div>
+
+      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.sub, textTransform: "uppercase", letterSpacing: 0.5, margin: "18px 4px 8px" }}>Description</div>
+      <div style={{ ...groupCard, padding: "12px 14px", fontSize: 15, lineHeight: 1.45, color: COLORS.text, fontWeight: 500 }}>
+        <FormattedDescription text={selectedIncident.description} />
+      </div>
+    </div>
+  );
+
+  const cam = nearestCameras[activeCameraIndex];
+  const camerasBody = selectedIncident && (
+    <div style={{ padding: "4px 16px 0 16px", animation: "ds-fade 0.3s ease" }}>
+      {isLoadingCameras ? (
+        <div style={{ aspectRatio: "16 / 9", borderRadius: 14, background: "#e5e5ea", display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.sub, fontWeight: 600 }}>
+          Loading cameras...
+        </div>
+      ) : cam ? (
+        <>
+          <div style={{ position: "relative", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", background: "#e5e5ea", display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.sub, fontWeight: 600 }}>
+            Camera offline
+            <img
+              key={cam.url}
+              src={cam.url}
+              alt="Traffic Camera"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#e5e5ea" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+            <button
+              className="ds-press"
+              onClick={() => setActiveCameraIndex((p) => (p > 0 ? p - 1 : nearestCameras.length - 1))}
+              aria-label="Previous camera"
+              style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: COLORS.fill, color: COLORS.blue, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+            >
+              <IconChevronLeft size={22} />
+            </button>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>Camera {activeCameraIndex + 1} of {nearestCameras.length}</div>
+              <div style={{ fontSize: 13, color: COLORS.sub, marginTop: 2 }}>~{Number(cam.distance_km).toFixed(2)} km away</div>
+            </div>
+            <button
+              className="ds-press"
+              onClick={() => setActiveCameraIndex((p) => (p < nearestCameras.length - 1 ? p + 1 : 0))}
+              aria-label="Next camera"
+              style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: COLORS.fill, color: COLORS.blue, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+            >
+              <IconChevronRight size={22} />
+            </button>
+          </div>
+        </>
+      ) : (
+        <div style={{ aspectRatio: "16 / 9", borderRadius: 14, background: "#e5e5ea", display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.sub, fontWeight: 600 }}>
+          No cameras available
+        </div>
+      )}
+    </div>
+  );
+
+  const sheetBody = inDetails ? (activeTab === "details" ? detailsBody : camerasBody) : listBody;
 
   return (
-    <div style={{ height: "100vh", width: "100vw", overflow: "hidden", position: "relative", fontFamily: font }}>
-      
-      {/* MAP STAYS MOUNTED (just hidden) SO SWITCHING PAGES IS SMOOTH */}
-      <div style={{ 
-        position: "absolute", 
-        inset: 0, 
-        zIndex: 1,
-        opacity: activePage === "map" ? 1 : 0,
-        visibility: activePage === "map" ? "visible" : "hidden",
-        pointerEvents: activePage === "map" ? "auto" : "none",
-        transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out"
-      }}>
-        <Map3D 
-          incidents={incidents} 
-          selectedIncident={selectedIncident} 
-          onSelectIncident={handleSelectIncident} 
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: font, overscrollBehavior: "none", touchAction: "manipulation" }}>
+      <style>{GLOBAL_CSS}</style>
+
+      {/* MAP */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
+        <Map3D
+          incidents={incidents}
+          selectedIncident={selectedIncident}
+          onSelectIncident={handleSelectIncident}
           onMapLoad={(mapInstance) => { mapRef.current = mapInstance; }}
+          paddingRef={paddingRef}
         />
       </div>
 
-      {/* BOTTOM LEFT MAP CONTROLS */}
-      {activePage === "map" && (
-        <div style={{ position: "absolute", bottom: "30px", left: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
-          <button onClick={handleMake2D} style={btnStyle} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>Make 2D</button>
-          <button onClick={handleResetView} style={btnStyle} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>Reset View</button>
-        </div>
-      )}
-
-      {/* BOTTOM RIGHT ZOOM CONTROLS */}
-      {activePage === "map" && (
-        <div style={{ position: "absolute", bottom: "30px", right: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
-          <button onClick={() => mapRef.current?.zoomIn()} style={zoomBtnStyle} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}><IconPlus size={20} color="#222" /></button>
-          <button onClick={() => mapRef.current?.zoomOut()} style={zoomBtnStyle} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}><IconMinus size={20} color="#222" /></button>
-        </div>
-      )}
-
-      {/* BLURRED BACKGROUND - always mounted so the image is decoded once (oversized so the blur has no faded border) */}
-      <div style={{ position: "absolute", inset: "-40px", zIndex: 1, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(4px)", transform: "translateZ(0)", willChange: "opacity", opacity: activePage === "list" ? 1 : 0, pointerEvents: "none", transition: "opacity 0.3s ease-in-out" }}></div>
-
-      {/* LIST PAGE */}
-      {activePage === "list" && (
-        <div style={{ 
-          position: "absolute", 
-          inset: 0, 
-          zIndex: 1, 
-          overflowY: "auto",
-          animation: "fadeIn 0.3s ease-in-out"
-        }}>
-          <div style={{ padding: "100px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
-            
-            <div style={{ marginBottom: "40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ position: "relative", width: "100%", maxWidth: "520px" }}>
-                <div style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", display: "flex", pointerEvents: "none" }}>
-                  <IconSearch size={20} color="#555" />
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search roads or locations..."
-                  style={{ width: "100%", boxSizing: "border-box", padding: "12px 46px 12px 46px", border: "3px solid #222", borderRadius: "20px", fontSize: "1rem", fontWeight: 700, fontFamily: font, color: "#222", background: "white", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", outline: "none" }}
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery("")} title="Clear" style={{ ...closeBtnStyle, position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)" }} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>
-                )}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              {processedList.map((incident) => {
-                const isOpen = expandedCard === incident.id;
-                return (
-                  <div 
-                    key={incident.id} 
-                    style={{ 
-                      background: "white", 
-                      borderRadius: "16px", 
-                      overflow: "hidden", 
-                      transition: "transform 0.2s ease-in-out", 
-                      border: "3px solid #222", 
-                      boxShadow: "6px 6px 0px rgba(0,0,0,0.8)"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-4px)"}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
-                  >
-                    
-                    <div 
-                      onClick={() => setExpandedCard(isOpen ? null : incident.id)} 
-                      style={{ 
-                        padding: "20px 24px", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "space-between", 
-                        cursor: "pointer",
-                        transition: "background 0.2s ease-in-out"
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#222", marginBottom: "6px" }}>
-                          {orNA(incident.roadway_name)}
-                        </div>
-                        <div style={{ fontSize: "0.9rem", color: "#4a5568", fontWeight: 700, fontFamily: font }}>
-                          {formatDateTime(incident.start_dt)}
-                        </div>
-                      </div>
-                      
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation(); 
-                            handleSelectIncident(incident);
-                          }}
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "50%",
-                            background: "#edf2f7",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            border: "2px solid #cbd5e0",
-                            transition: "all 0.2s ease-in-out"
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = "#e2e8f0"; e.currentTarget.style.transform = "scale(1.1)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = "#edf2f7"; e.currentTarget.style.transform = "scale(1)"; }}
-                          title="View on Map"
-                        >
-                          <IconMapPin size={18} color="#d64545" />
-                        </div>
-
-                        <div style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "50%",
-                          background: "#d64545",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "background 0.2s ease-in-out",
-                          cursor: "pointer"
-                        }}>
-                          <IconChevronDown 
-                            size={18} 
-                            color="white" 
-                            style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease-in-out" }} 
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: "grid", gridTemplateRows: isOpen ? "1fr" : "0fr", transition: "grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-                    <div style={{ overflow: "hidden", minHeight: 0 }}>
-                      <div style={{ padding: "0 24px 24px 24px", fontFamily: font, opacity: isOpen ? 1 : 0, transform: isOpen ? "translateY(0)" : "translateY(-8px)", transition: "opacity 0.3s ease-in-out, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-                        
-                         <div style={{ marginBottom: "20px", fontSize: "0.95rem", color: "#2d3748", lineHeight: "1.6" }}>
-                            <FormattedDescription text={incident.description} />
-                         </div>
-
-                         <div style={{ 
-                            display: "grid", 
-                            gridTemplateColumns: "1fr 1fr", 
-                            gap: "16px", 
-                            background: "#f7fafc", 
-                            padding: "16px", 
-                            borderRadius: "12px",
-                            border: "1px solid #e2e8f0",
-                            marginBottom: "20px"
-                         }}>
-                            <div>
-                              <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>QUADRANT</div>
-                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{orNA(incident.quadrant)}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: "0.75rem", fontWeight: 900, color: "#718096", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>LAST UPDATED</div>
-                              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>{formatDateTime(incident.modified_dt)}</div>
-                            </div>
-                         </div>
-
-                      </div>
-                    </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {processedList.length === 0 && (
-                <div style={{ textAlign: "center", fontWeight: 800, fontSize: "1.2rem", marginTop: "40px", color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
-                  No incidents found.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ position: "fixed", top: "20px", left: "20px", zIndex: 10, background: "#22335C", border: "3px solid #fff", borderRadius: "16px", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", cursor: "pointer", transition: "transform 0.2s ease-in-out" }} onClick={() => setActivePage("map")} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-        <img src={driveGif} alt="Drive Animation" style={{ height: "50px", borderRadius: "10px", border: "2px solid #fff" }} />
+      {/* TITLE (top left) */}
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          left: wide ? 404 : "calc(env(safe-area-inset-left, 0px) + 12px)",
+          zIndex: 15,
+          background: "#22335C",
+          border: "2px solid #fff",
+          borderRadius: 12,
+          padding: "5px 10px 5px 6px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+          opacity: snap === "full" && !wide ? 0 : 1,
+          pointerEvents: "none",
+          transition: "opacity 0.25s ease",
+        }}
+      >
+        <img src={driveGif} alt="" style={{ height: 28, width: 28, borderRadius: 7, objectFit: "cover", border: "1.5px solid #fff" }} />
         <div>
-          <h1 style={{ fontSize: "1.5rem", margin: 0, fontWeight: 900, letterSpacing: "-0.5px", color: "#fff" }}>DriveSafe Calgary</h1>
-          <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#E0E6ED" }}>Live Traffic Incidents</p>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.1, letterSpacing: "-0.2px" }}>DriveSafe Calgary</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#E0E6ED", lineHeight: 1.2 }}>Live Traffic Incidents</div>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowAbout(true); }}
-          title="About"
-          style={{ width: "30px", height: "30px", borderRadius: "50%", border: "2px solid #fff", background: "transparent", color: "#fff", fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontWeight: 700, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, marginLeft: "4px", transition: "all 0.2s ease-in-out" }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#22335C"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#fff"; }}
-        >i</button>
       </div>
 
-      <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", zIndex: 10, background: "white", border: "3px solid #222", borderRadius: "20px", padding: "8px 30px", display: "flex", gap: "30px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)" }}>
-        <span onClick={() => setActivePage("map")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "map" ? 1 : 0.5, transition: "all 0.2s ease-in-out" }}>MAP</span>
-        <span onClick={() => setActivePage("list")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "list" ? 1 : 0.5, transition: "all 0.2s ease-in-out" }}>LIST</span>
+      {/* FLOATING MAP CONTROLS (top right, glass pill like Apple Maps) */}
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          zIndex: 15,
+          ...GLASS,
+          borderRadius: 14,
+          boxShadow: "0 2px 14px rgba(0,0,0,0.25)",
+          overflow: "hidden",
+          opacity: snap === "full" && !wide ? 0 : 1,
+          pointerEvents: snap === "full" && !wide ? "none" : "auto",
+          transition: "opacity 0.25s ease",
+        }}
+      >
+        <button className="ds-row" onClick={() => setShowAbout(true)} aria-label="About" style={roundBtn}><IconInfo size={20} /></button>
+        <div style={{ height: 1, background: COLORS.line, margin: "0 6px" }} />
+        <button className="ds-row" onClick={handleToggle3D} aria-label="Toggle 2D / 3D" style={{ ...roundBtn, fontSize: 14, fontWeight: 700 }}>{is3D ? "2D" : "3D"}</button>
+        <div style={{ height: 1, background: COLORS.line, margin: "0 6px" }} />
+        <button className="ds-row" onClick={handleReset} aria-label="Reset view" style={roundBtn}><IconReset size={18} /></button>
       </div>
 
-      {activePage === "map" && !selectedIncident && (
-        <div style={{ position: "absolute", top: "20px", right: "20px", zIndex: 10, background: "#F9F6EE", border: "3px solid #222", borderRadius: "16px", padding: "16px", width: "300px", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)" }}>
-          
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", paddingLeft: "8px" }}>
-            <IconMapPin size={18} color="#555" />
-            <h3 style={{ margin: 0, fontWeight: 900, fontSize: "0.9rem", color: "#555", letterSpacing: "1px" }}>LATEST INCIDENTS</h3>
-          </div>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {recentIncidents.map((inc) => (
-              <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.querySelector('.title').style.color = "#fff"; e.currentTarget.querySelector('.time').style.color = "#ccc"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.querySelector('.title').style.color = "#222"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#aaa" }}>0{recentIncidents.indexOf(inc) + 1}</span>
-                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "150px", transition: "color 0.2s ease-in-out" }}>{orNA(inc.roadway_name)}</span>
-                </div>
-                <div className="time" style={{ fontSize: "0.9rem", fontWeight: 800, color: "#aaa", transition: "color 0.2s ease-in-out" }}>{timeAgoShort(inc.start_dt)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* BOTTOM SHEET */}
+      <BottomSheet snap={snap} onSnap={setSnap} vh={vh} wide={wide} grab={grabContent} sticky={stickyContent}>
+        {sheetBody}
+      </BottomSheet>
 
-      {activePage === "map" && selectedIncident && (
-        <>
-          <button onClick={handleExit} style={{ position: "absolute", top: "100px", left: "50%", transform: "translateX(-50%)", zIndex: 100, padding: "12px 24px", borderRadius: "25px", background: "#d64545", color: "white", border: "3px solid #222", fontSize: "1.1rem", fontWeight: 900, cursor: "pointer", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", fontFamily: font, transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translate(-50%, -2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translate(-50%, 0)"}>
-            ✕ EXIT
+      {/* ABOUT OVERLAY */}
+      <div
+        onClick={() => setShowAbout(false)}
+        style={{
+          position: "absolute", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.4)",
+          display: "flex", alignItems: wide ? "center" : "flex-end", justifyContent: "center",
+          padding: wide ? 20 : 0,
+          opacity: showAbout ? 1 : 0, visibility: showAbout ? "visible" : "hidden",
+          transition: "opacity 0.3s ease, visibility 0.3s ease",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: "100%", maxWidth: 480, maxHeight: "85%", overflowY: "auto",
+            background: "white", fontFamily: font, color: COLORS.text,
+            borderRadius: wide ? 20 : "20px 20px 0 0",
+            padding: "24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px) 20px",
+            transform: showAbout ? "translateY(0)" : "translateY(40px)",
+            transition: "transform 0.35s cubic-bezier(0.22, 0.9, 0.3, 1)",
+            position: "relative",
+          }}
+        >
+          <button
+            className="ds-press"
+            onClick={() => setShowAbout(false)}
+            aria-label="Close"
+            style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: "50%", border: "none", background: "rgba(118,118,128,0.2)", color: COLORS.sub, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+          >
+            <IconClose size={16} />
           </button>
 
-          {showCameraCard && (
-            <div style={{ position: "absolute", top: "25vh", left: "8%", width: "420px", background: "white", padding: "1rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto", animation: "fadeIn 0.3s ease-in-out" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                <h3 style={{ margin: 0, color: "#222", textAlign: "center", fontSize: "1.1rem", fontWeight: 900, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                  <IconVideo size={20} color="#222" /> Cameras
-                </h3>
-                <button onClick={() => setShowCameraCard(false)} style={closeBtnStyle} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>
-              </div>
-              
-              {isLoadingCameras ? (
-                <div style={{ width: "100%", height: "220px", background: "#eee", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #222", marginBottom: "1rem" }}>
-                  <span style={{ fontWeight: 800, color: "#666" }}>Loading cameras...</span>
-                </div>
-              ) : nearestCameras.length > 0 ? (
-                <>
-                  <div style={{ width: "100%", height: "220px", background: "#eee", borderRadius: "10px", overflow: "hidden", position: "relative", marginBottom: "1rem", border: "2px solid #222" }}>
-                    <img src={nearestCameras[activeCameraIndex].url} alt="Traffic Camera" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"} onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"} onError={(e) => e.target.src = "https://via.placeholder.com/400x220?text=Camera+Offline"} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <button onClick={() => setActiveCameraIndex((prev) => prev > 0 ? prev - 1 : nearestCameras.length - 1)} style={{ background: "#FFC107", color: "#222", border: "2px solid #222", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", fontWeight: 900, boxShadow: "2px 2px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>&lt;</button>
-                    <div style={{ fontSize: "0.9rem", fontWeight: 900, color: "#222", display: "flex", alignItems: "center", gap: "4px" }}>
-                      <IconMapPin size={16} color="#d64545" /> ~{nearestCameras[activeCameraIndex].distance_km.toFixed(2)} km
-                    </div>
-                    <button onClick={() => setActiveCameraIndex((prev) => prev < nearestCameras.length - 1 ? prev + 1 : 0)} style={{ background: "#FFC107", color: "#222", border: "2px solid #222", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", fontWeight: 900, boxShadow: "2px 2px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>&gt;</button>
-                  </div>
-                </>
-              ) : (
-                <div style={{ width: "100%", height: "220px", background: "#eee", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #222", marginBottom: "1rem" }}>
-                  <span style={{ fontWeight: 800, color: "#666" }}>No cameras available</span>
-                </div>
-              )}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16, paddingRight: 40 }}>
+            <img src={driveGif} alt="DriveSafe" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", background: "#22335C" }} />
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1 }}>DriveSafe Calgary</div>
+              <div style={{ fontSize: 14, color: COLORS.sub, marginTop: 2 }}>Live traffic incidents</div>
             </div>
-          )}
+          </div>
 
-          {showDetailsCard && (
-            <div style={{ position: "absolute", top: "25vh", right: "8%", width: "420px", background: "white", padding: "1.5rem", borderRadius: "16px", border: "3px solid #222", boxShadow: "6px 6px 0px rgba(0,0,0,0.8)", zIndex: 100, maxHeight: "60vh", overflowY: "auto", animation: "fadeIn 0.3s ease-in-out" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                <h2 style={{ margin: 0, color: "#d64545", fontSize: "1.4rem", fontWeight: 900 }}>{orNA(selectedIncident.roadway_name)}</h2>
-                <button onClick={() => setShowDetailsCard(false)} style={closeBtnStyle} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>
-              </div>
-              
-              <div style={{ fontSize: "0.95rem", marginBottom: "1rem", lineHeight: "1.4", fontWeight: 700, color: "#333", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <FormattedDescription text={selectedIncident.description} />
-              </div>
-              
-              <div style={{ background: "#f8f9fa", padding: "1rem", borderRadius: "10px", marginBottom: "0.5rem", border: "2px solid #ddd" }}>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>When:</b> {formatTime(selectedIncident.start_dt)}</p>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Quadrant:</b> {orNA(selectedIncident.quadrant)}</p>
-                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.9rem", fontWeight: 800 }}><b>Last updated:</b> {formatDateTime(selectedIncident.modified_dt)}</p>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ABOUT POPUP (opened from the i in the title card) */}
-      <div onClick={() => setShowAbout(false)} style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", opacity: showAbout ? 1 : 0, visibility: showAbout ? "visible" : "hidden", transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out" }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", background: "white", borderRadius: "24px", padding: "40px", maxWidth: "700px", width: "100%", maxHeight: "90vh", overflowY: "auto", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)", transform: showAbout ? "scale(1) translateY(0)" : "scale(0.96) translateY(10px)", transition: "transform 0.3s ease-in-out" }}>
-          <button onClick={() => setShowAbout(false)} style={{ ...closeBtnStyle, position: "absolute", top: "16px", right: "16px", fontSize: "1.4rem" }} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>
-          <h1 style={{ fontSize: "2.5rem", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px 0", color: "#222", paddingRight: "30px" }}>About DriveSafe Calgary.</h1>
-          <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "20px" }}>
-            DriveSafe Calgary is an application made by <a href="https://tahazuberi.vercel.app/" target="_blank" rel="noreferrer" style={{ color: "#004c8c", textDecoration: "underline" }}>Taha Zuberi</a>. 
-            It is a public, free tool built for Calgary residents to get real-time traffic incidents and live camera feeds. 
+          <p style={{ fontSize: 16, lineHeight: 1.5, color: "#3a3a3c", margin: "0 0 12px 0" }}>
+            DriveSafe Calgary is an application made by <a href="https://tahazuberi.vercel.app/" target="_blank" rel="noreferrer" style={{ color: COLORS.blue, textDecoration: "none", fontWeight: 600 }}>Taha Zuberi</a>.
+            It is a public, free tool built for Calgary residents to get real-time traffic incidents and live camera feeds.
             The goal is to keep the community informed and safe on the roads.
           </p>
-          <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "30px" }}>If you have any questions or concerns, please email below:</p>
-          <a href="mailto:taha.zuberi@ucalgary.ca" onClick={openEmail} style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1.1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
+          <p style={{ fontSize: 16, lineHeight: 1.5, color: "#3a3a3c", margin: "0 0 18px 0" }}>
+            If you have any questions or concerns, please email below:
+          </p>
+          <a
+            href="mailto:taha.zuberi@ucalgary.ca"
+            className="ds-press"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.blue, color: "white", borderRadius: 14, padding: "14px 16px", fontWeight: 700, fontSize: 16, textDecoration: "none" }}
+          >
             taha.zuberi@ucalgary.ca
           </a>
         </div>
       </div>
-
-      {showImageModal && (
-        <div className="modal" onClick={() => setShowImageModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, animation: "fadeIn 0.3s ease-in-out" }}>
-          <img src={showImageModal} alt="camera" style={{ maxWidth: "95vw", maxHeight: "95vh", borderRadius: "12px", border: "4px solid #222", transform: "scale(0.95)", transition: "transform 0.3s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1)"} onMouseLeave={(e) => e.currentTarget.style.transform = "scale(0.95)"} onClick={e => e.stopPropagation()} />
-          <button className="close-btn" onClick={() => setShowImageModal(null)} style={{ position: "absolute", top: "2rem", right: "2rem", padding: "12px 24px", background: "white", border: "3px solid #222", borderRadius: "10px", cursor: "pointer", fontWeight: 900, fontSize: "1.1rem", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", fontFamily: font, transition: "all 0.2s ease-in-out" }}>Close</button>
-        </div>
-      )}
     </div>
   );
 }
