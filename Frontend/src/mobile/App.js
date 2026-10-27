@@ -115,6 +115,13 @@ function timeAgo(value) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
+function isWithinLastWeek(value) {
+  if (!value) return true;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return true;
+  return Date.now() - d.getTime() <= 7 * 24 * 60 * 60 * 1000;
+}
+
 function isToday(value) {
   if (!value) return false;
   const d = new Date(value);
@@ -445,6 +452,7 @@ function App() {
   const [snap, setSnap] = useState("peek");
   const [showAbout, setShowAbout] = useState(false);
   const [is3D, setIs3D] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
 
   const mapRef = useRef(null);
   const paddingRef = useRef({ top: 0, bottom: 0, left: 0, right: 0 });
@@ -456,7 +464,7 @@ function App() {
   function loadIncidents() {
     axios.get(`${API_BASE_URL}/api/incidents?limit=500`).then(res => {
       if (res.data?.items) {
-        const clean = res.data.items.filter(i => i.coordinates?.lat && i.coordinates?.lon);
+        const clean = res.data.items.filter(i => i.coordinates?.lat && i.coordinates?.lon && isWithinLastWeek(i.start_dt));
         setIncidents(clean);
       }
       setIsLoading(false);
@@ -537,7 +545,7 @@ function App() {
 
   // when searching, keep the search relevance order; otherwise newest first
   const isSearching = searchResults !== null;
-  let processedList = isSearching ? [...searchResults] : [...incidents];
+  let processedList = isSearching ? searchResults.filter(i => isWithinLastWeek(i.start_dt)) : [...incidents];
   if (!isSearching) processedList.sort((a, b) => new Date(b.start_dt || 0) - new Date(a.start_dt || 0));
 
   if (isLoading) {
@@ -650,27 +658,46 @@ function App() {
     <div>
       {processedList.map((inc, i) => {
         const onMap = isToday(inc.start_dt);
+        const isOpen = expandedId === inc.id;
         return (
+        <div key={inc.id}>
         <div
-          key={inc.id}
-          className={onMap ? "ds-row" : undefined}
-          onClick={onMap ? () => handleSelectIncident(inc) : undefined}
-          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: onMap ? "pointer" : "default" }}
+          className="ds-row"
+          onClick={onMap ? () => handleSelectIncident(inc) : () => setExpandedId(isOpen ? null : inc.id)}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", cursor: "pointer" }}
         >
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: COLORS.red, color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <IconCar size={20} color="white" />
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: onMap ? COLORS.red : "#FFC107", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <IconCar size={20} color={onMap ? "white" : COLORS.text} />
           </div>
           <div style={{ flex: 1, minWidth: 0, borderBottom: i === processedList.length - 1 ? "none" : `1px solid ${COLORS.line}`, padding: "4px 0 12px 0", marginBottom: -4 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{orNA(inc.roadway_name)}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 2, color: COLORS.sub, fontSize: 13, flexShrink: 0 }}>
-                {timeAgo(inc.start_dt)} {onMap && <IconChevronRight size={14} color="#c4c4c7" />}
+                {timeAgo(inc.start_dt)} {onMap ? <IconChevronRight size={14} color="#c4c4c7" /> : (
+                  <span style={{ display: "flex", transform: isOpen ? "rotate(-90deg)" : "rotate(90deg)", transition: "transform 0.2s ease" }}>
+                    <IconChevronRight size={14} color="#c4c4c7" />
+                  </span>
+                )}
               </div>
             </div>
             <div style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {[inc.quadrant, orNA(inc.description)].filter(Boolean).join(" · ").replace(/\s+/g, " ")}
             </div>
           </div>
+        </div>
+        {!onMap && isOpen && (
+          <div style={{ padding: "0 16px 14px 16px", animation: "ds-fade 0.3s ease" }}>
+            <div style={groupCard}>
+              {infoRow("When", formatDateTime(inc.start_dt))}
+              {infoRow("Quadrant", orNA(inc.quadrant))}
+              {infoRow("Last updated", formatDateTime(inc.modified_dt), true)}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.sub, textTransform: "uppercase", letterSpacing: 0.5, margin: "14px 4px 8px" }}>Description</div>
+            <div style={{ ...groupCard, padding: "12px 14px", fontSize: 15, lineHeight: 1.45, color: COLORS.text, fontWeight: 500 }}>
+              <FormattedDescription text={inc.description} />
+            </div>
+          </div>
+        )}
         </div>
         );
       })}

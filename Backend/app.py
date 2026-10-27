@@ -199,6 +199,7 @@ incidents_cache = {"timestamp": 0, "data": []} #  last got incident data
 # how long to keep cached data before getting fresh data
 CAMERAS_CACHE_SECONDS = 60  # (updates every minute and incidents is 30 sec)
 INCIDENTS_CACHE_SECONDS = 30  
+INCIDENT_MAX_AGE_DAYS = 7  # only keep incidents from the last 7 days
 
 
 # gets current time as a number
@@ -348,7 +349,79 @@ def get_cameras():
     redis_set_json(CAMERAS_REDIS_KEY, cameras, CAMERAS_CACHE_SECONDS)
     return cameras
 
-# gets incident data from redis, memory, or the 511 api (in that order)
+# only one refresh of the incidents data runs at a time
+incidents_lock = threading.Lock()
+
+
+# downloads the raw incident list. asks the api for only the last 7 days (much smaller + faster).
+# if the api rejects those extra params it falls back to the plain url.
+def fetch_incidents_raw():
+    url = INCIDENTS_URL or ""
+    cutoff = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.time() - INCIDENT_MAX_AGE_DAYS * 86400))
+    params = {}
+    if "$where" not in url and "%24where" not in url:
+        params["$where"] = f"start_dt_utc >= '{cutoff}'"
+    if "$limit" not in url and "%24limit" not in url:
+        params["$limit"] = 5000
+    try:
+        r = requests.get(INCIDENTS_URL, params=params, timeout=20)
+        r.raise_for_status()
+        return r.json()
+    except requests.HTTPError as e:
+        # only retry without params if the api said our params were bad (4xx)
+        if e.response is None or not (400 <= e.response.status_code < 500):
+            raise
+        print("incidents api rejected filter params, retrying plain:", e)
+    r = requests.get(INCIDENTS_URL, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
+# fetches fresh incidents, cleans them, and saves them to both caches (no flask context needed)
+def fetch_and_cache_incidents():
+    with incidents_lock:
+        # another thread may have refreshed while we were waiting for the lock
+        if incidents_cache["timestamp"] > 0 and (get_current_time() - incidents_cache["timestamp"]) < 5:
+            return incidents_cache["data"]
+
+        data = fetch_incidents_raw()
+
+        # clean each incident, dropping anything outside calgary or invalid
+        incidents = [clean_incident_data(x) for x in data if x]
+        incidents = [x for x in incidents if x]
+
+        # drop anything older than 7 days (incidents with no date are kept)
+        cutoff_iso = unix_to_iso(time.time() - INCIDENT_MAX_AGE_DAYS * 86400)
+        incidents = [x for x in incidents if not x.get("start_dt") or x["start_dt"] >= cutoff_iso]
+
+        # newest first (matches previous behavior)
+        incidents.sort(
+            key=lambda x: x.get("start_dt") or "",
+            reverse=True
+        )
+
+        # always cache the FULL list (any limit is just a slice of it)
+        update_cache(incidents_cache, incidents)
+        redis_set_json(INCIDENTS_REDIS_KEY, incidents, INCIDENTS_CACHE_SECONDS)
+
+        # keep the search index fresh (runs in the background)
+        index_incidents_async(incidents)
+        return incidents
+
+
+# refreshes in a background thread (skipped if a refresh is already running)
+def refresh_incidents_async():
+    if incidents_lock.locked():
+        return
+    def _run():
+        try:
+            fetch_and_cache_incidents()
+        except Exception as e:
+            print("background incidents refresh failed:", e)
+    threading.Thread(target=_run, daemon=True).start()
+
+
+# gets incident data from redis, memory, or the api (in that order)
 def get_incidents(limit=None):
     # 1) redis - the full list is cached once and every request just slices it
     cached = redis_get_json(INCIDENTS_REDIS_KEY)
@@ -357,36 +430,34 @@ def get_incidents(limit=None):
         return cached if limit is None else cached[:limit]
 
     # 2) in-memory backup (used if redis is not set up or is down)
-    if incidents_cache["timestamp"] > 0 and not is_cache_expired(incidents_cache, INCIDENTS_CACHE_SECONDS):
-        g.cache_status = "HIT-MEMORY"
+    if incidents_cache["timestamp"] > 0:
         cached_data = incidents_cache["data"]
+        if is_cache_expired(incidents_cache, INCIDENTS_CACHE_SECONDS):
+            # data is a little old - answer instantly with it and refresh in the background
+            g.cache_status = "STALE"
+            refresh_incidents_async()
+        else:
+            g.cache_status = "HIT-MEMORY"
         return cached_data if limit is None else cached_data[:limit]
 
-    # 3) cache miss - fetch fresh data from 511 alberta events api
-    # (this api returns the full list; we filter to calgary afterward)
+    # 3) nothing cached yet - fetch fresh data (only the very first request ever waits)
     g.cache_status = "MISS"
-    r = requests.get(INCIDENTS_URL, timeout=20)
-    r.raise_for_status() # crash if api fails
-    data = r.json()
-
-    # clean each incident, dropping anything outside calgary or invalid
-    incidents = [clean_incident_data(x) for x in data if x]
-    incidents = [x for x in incidents if x]
-
-    # newest first (matches previous behavior)
-    incidents.sort(
-        key=lambda x: x.get("start_dt") or "",
-        reverse=True
-    )
-    
-    # always cache the FULL list (any limit is just a slice of it)
-    update_cache(incidents_cache, incidents)
-    redis_set_json(INCIDENTS_REDIS_KEY, incidents, INCIDENTS_CACHE_SECONDS)
-
-    # keep the search index fresh (runs in the background)
-    index_incidents_async(incidents)
-    
+    incidents = fetch_and_cache_incidents()
     return incidents if limit is None else incidents[:limit]
+
+
+# keeps the incidents cache warm so visitors never wait on the upstream api
+def incidents_warmer():
+    while True:
+        try:
+            fetch_and_cache_incidents()
+        except Exception as e:
+            print("incidents warmer failed:", e)
+        time.sleep(25)
+
+
+if INCIDENTS_URL:
+    threading.Thread(target=incidents_warmer, daemon=True).start()
 
 
 # adds response time + cache hit/miss headers so you can measure latency (check them in browser devtools > network)

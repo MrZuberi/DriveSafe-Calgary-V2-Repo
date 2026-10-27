@@ -92,6 +92,13 @@ function timeAgoShort(value) {
   return `${Math.round(hrs / 24)}d`;
 }
 
+function isWithinLastWeek(value) {
+  if (!value) return true;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return true;
+  return Date.now() - d.getTime() <= 7 * 24 * 60 * 60 * 1000;
+}
+
 function isToday(value) {
   if (!value) return false;
   const d = new Date(value);
@@ -287,7 +294,7 @@ function App() {
   function loadIncidents() {
     axios.get(`${API_BASE_URL}/api/incidents?limit=100`).then(res => {
       if (res.data?.items) {
-        const clean = res.data.items.filter(i => i.coordinates?.lat && i.coordinates?.lon);
+        const clean = res.data.items.filter(i => i.coordinates?.lat && i.coordinates?.lon && isWithinLastWeek(i.start_dt));
         setIncidents(prev => (
           prev.length === clean.length && prev.every((p, idx) => p.id === clean[idx].id && p.modified_dt === clean[idx].modified_dt)
         ) ? prev : clean);
@@ -365,7 +372,7 @@ function App() {
 
   // when searching, keep the search relevance order; otherwise newest first
   const isSearching = searchResults !== null;
-  let processedList = isSearching ? [...searchResults] : [...incidents];
+  let processedList = isSearching ? searchResults.filter(i => isWithinLastWeek(i.start_dt)) : [...incidents];
   if (!isSearching) {
     processedList.sort((a, b) => {
       const dateA = new Date(a.start_dt || 0);
@@ -562,7 +569,7 @@ function App() {
                           width: "36px",
                           height: "36px",
                           borderRadius: "50%",
-                          background: "#d64545",
+                          background: isToday(incident.start_dt) ? "#d64545" : "#FFC107",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -571,7 +578,7 @@ function App() {
                         }}>
                           <IconChevronDown 
                             size={18} 
-                            color="white" 
+                            color={isToday(incident.start_dt) ? "white" : "#222"} 
                             style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease-in-out" }} 
                           />
                         </div>
