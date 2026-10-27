@@ -50,7 +50,20 @@ const IconArrowRight = ({ size = 20, color = "currentColor" }) => (
     <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
+const IconCar = ({ size = 18, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 16V11L7 6H17L19 11V16" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="3" y="11" width="18" height="6" rx="2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="7.5" cy="14" r="0.6" fill={color} stroke={color} strokeWidth="1"/>
+    <circle cx="16.5" cy="14" r="0.6" fill={color} stroke={color} strokeWidth="1"/>
+  </svg>
+);
 // -----------------------------
+
+// Start downloading + decoding the background image immediately so it is ready before the List page opens
+const preloadBg = new Image();
+preloadBg.src = image1;
+if (preloadBg.decode) preloadBg.decode().catch(() => {});
 
 function orNA(value) {
   if (value === null || value === undefined) return "No Details";
@@ -71,6 +84,18 @@ function formatDateTime(value) {
   const d = new Date(value);
   if (isNaN(d.getTime())) return "No Details";
   return d.toLocaleString();
+}
+
+function timeAgoShort(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.round(hrs / 24)}d`;
 }
 
 function FormattedDescription({ text }) {
@@ -285,12 +310,15 @@ function App() {
 
   const [listFilter, setListFilter] = useState("ALL");
   const [expandedCard, setExpandedCard] = useState(null);
+  const [showAbout, setShowAbout] = useState(false);
 
   function loadIncidents() {
     axios.get(`${API_BASE_URL}/api/incidents?limit=100`).then(res => {
       if (res.data?.items) {
         const clean = res.data.items.filter(i => i.coordinates?.lat && i.coordinates?.lon);
-        setIncidents(clean);
+        setIncidents(prev => (
+          prev.length === clean.length && prev.every((p, idx) => p.id === clean[idx].id && p.modified_dt === clean[idx].modified_dt)
+        ) ? prev : clean);
       }
       setIsLoading(false);
     }).catch(() => setIsLoading(false));
@@ -453,7 +481,10 @@ function App() {
         </div>
       )}
 
-      {/* LIST PAGE (SAME BACKGROUND AS ABOUT PAGE) */}
+      {/* BLURRED BACKGROUND - always mounted so the image is decoded once (oversized so the blur has no faded border) */}
+      <div style={{ position: "absolute", inset: "-40px", zIndex: 1, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(4px)", transform: "translateZ(0)", willChange: "opacity", opacity: activePage === "list" ? 1 : 0, pointerEvents: "none", transition: "opacity 0.3s ease-in-out" }}></div>
+
+      {/* LIST PAGE */}
       {activePage === "list" && (
         <div style={{ 
           position: "absolute", 
@@ -462,9 +493,6 @@ function App() {
           overflowY: "auto",
           animation: "fadeIn 0.3s ease-in-out"
         }}>
-          {/* Blurred background - oversized so the blur has no faded border at the edges */}
-          <div style={{ position: "fixed", inset: "-40px", backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(4px)", zIndex: -1 }}></div>
-          
           <div style={{ padding: "100px 40px 60px 40px", maxWidth: "900px", margin: "0 auto" }}>
             
             <div style={{ marginBottom: "40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -605,39 +633,24 @@ function App() {
         </div>
       )}
 
-      {activePage === "about" && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 1, overflowY: "auto", animation: "fadeIn 0.3s ease-in-out" }}>
-          {/* Oversized so the blur has no faded border at the edges */}
-          <div style={{ position: "fixed", inset: "-40px", backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)", zIndex: -1 }}></div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "20px" }}>
-            <div style={{ background: "white", borderRadius: "24px", padding: "40px", maxWidth: "800px", width: "100%", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)", transition: "transform 0.2s ease-in-out" }}>
-              <h1 style={{ fontSize: "2.5rem", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px 0", color: "#222" }}>About DriveSafe Calgary.</h1>
-              <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "20px" }}>
-                DriveSafe Calgary is an application made by <a href="https://tahazuberi.vercel.app/" target="_blank" rel="noreferrer" style={{ color: "#004c8c", textDecoration: "underline" }}>Taha Zuberi</a>. 
-                It is a public, free tool built for Calgary residents to get real-time traffic incidents and live camera feeds. 
-                The goal is to keep the community informed and safe on the roads.
-              </p>
-              <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "30px" }}>If you have any questions or concerns, please email below:</p>
-              <a href="mailto:taha.zuberi@ucalgary.ca" style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1.1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-                <IconArrowRight size={20} color="#004c8c" style={{ marginRight: "10px" }} /> taha.zuberi@ucalgary.ca
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div style={{ position: "fixed", top: "20px", left: "20px", zIndex: 10, background: "#22335C", border: "3px solid #fff", borderRadius: "16px", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", cursor: "pointer", transition: "transform 0.2s ease-in-out" }} onClick={() => setActivePage("map")} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
         <img src={driveGif} alt="Drive Animation" style={{ height: "50px", borderRadius: "10px", border: "2px solid #fff" }} />
         <div>
           <h1 style={{ fontSize: "1.5rem", margin: 0, fontWeight: 900, letterSpacing: "-0.5px", color: "#fff" }}>DriveSafe Calgary</h1>
           <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#E0E6ED" }}>Live Traffic Incidents</p>
         </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowAbout(true); }}
+          title="About"
+          style={{ width: "30px", height: "30px", borderRadius: "50%", border: "2px solid #fff", background: "transparent", color: "#fff", fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", fontWeight: 700, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, marginLeft: "4px", transition: "all 0.2s ease-in-out" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#22335C"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#fff"; }}
+        >i</button>
       </div>
 
       <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", zIndex: 10, background: "white", border: "3px solid #222", borderRadius: "20px", padding: "8px 30px", display: "flex", gap: "30px", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)" }}>
         <span onClick={() => setActivePage("map")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "map" ? 1 : 0.5, transition: "all 0.2s ease-in-out" }}>MAP</span>
         <span onClick={() => setActivePage("list")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "list" ? 1 : 0.5, transition: "all 0.2s ease-in-out" }}>LIST</span>
-        <span onClick={() => setActivePage("about")} style={{ fontWeight: 800, fontSize: "1.1rem", cursor: "pointer", color: "#222", opacity: activePage === "about" ? 1 : 0.5, transition: "all 0.2s ease-in-out" }}>ABOUT</span>
       </div>
 
       {activePage === "map" && !selectedIncident && (
@@ -649,13 +662,15 @@ function App() {
           </div>
           
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {recentIncidents.map((inc, i) => (
-              <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.querySelector('.num').style.color = "#aaa"; e.currentTarget.querySelector('.title').style.color = "#fff"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.querySelector('.num').style.color = "#aaa"; e.currentTarget.querySelector('.title').style.color = "#222"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }}>
+            {recentIncidents.map((inc) => (
+              <div key={inc.id} onClick={() => handleSelectIncident(inc)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "10px", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.querySelector('.title').style.color = "#fff"; e.currentTarget.querySelector('.time').style.color = "#ccc"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.querySelector('.title').style.color = "#222"; e.currentTarget.querySelector('.time').style.color = "#aaa"; }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span className="num" style={{ fontSize: "0.85rem", fontWeight: 800, color: "#aaa" }}>0{i + 1}</span>
-                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "150px" }}>{orNA(inc.roadway_name)}</span>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#d64545", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <IconCar size={18} color="white" />
+                  </div>
+                  <span className="title" style={{ fontWeight: 900, fontSize: "1.05rem", color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "135px", transition: "color 0.2s ease-in-out" }}>{orNA(inc.roadway_name)}</span>
                 </div>
-                <div className="time" style={{ fontSize: "0.85rem", fontWeight: 700, color: "#aaa" }}>{formatTime(inc.start_dt)}</div>
+                <div className="time" style={{ fontSize: "0.9rem", fontWeight: 800, color: "#aaa", transition: "color 0.2s ease-in-out" }}>{timeAgoShort(inc.start_dt)}</div>
               </div>
             ))}
           </div>
@@ -723,6 +738,23 @@ function App() {
           )}
         </>
       )}
+
+      {/* ABOUT POPUP (opened from the i in the title card) */}
+      <div onClick={() => setShowAbout(false)} style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", opacity: showAbout ? 1 : 0, visibility: showAbout ? "visible" : "hidden", transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out" }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", background: "white", borderRadius: "24px", padding: "40px", maxWidth: "700px", width: "100%", maxHeight: "90vh", overflowY: "auto", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)", transform: showAbout ? "scale(1) translateY(0)" : "scale(0.96) translateY(10px)", transition: "transform 0.3s ease-in-out" }}>
+          <button onClick={() => setShowAbout(false)} style={{ ...closeBtnStyle, position: "absolute", top: "16px", right: "16px", fontSize: "1.4rem" }} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>
+          <h1 style={{ fontSize: "2.5rem", fontWeight: 900, lineHeight: 1.1, margin: "0 0 20px 0", color: "#222", paddingRight: "30px" }}>About DriveSafe Calgary.</h1>
+          <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "20px" }}>
+            DriveSafe Calgary is an application made by <a href="https://tahazuberi.vercel.app/" target="_blank" rel="noreferrer" style={{ color: "#004c8c", textDecoration: "underline" }}>Taha Zuberi</a>. 
+            It is a public, free tool built for Calgary residents to get real-time traffic incidents and live camera feeds. 
+            The goal is to keep the community informed and safe on the roads.
+          </p>
+          <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "#444", lineHeight: "1.6", marginBottom: "30px" }}>If you have any questions or concerns, please email below:</p>
+          <a href="mailto:taha.zuberi@ucalgary.ca" style={{ display: "inline-flex", alignItems: "center", background: "#f8f9fa", border: "3px solid #222", borderRadius: "12px", padding: "12px 24px", color: "#222", fontWeight: 900, fontSize: "1.1rem", textDecoration: "none", boxShadow: "4px 4px 0px rgba(0,0,0,0.8)", transition: "all 0.2s ease-in-out" }} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>
+            <IconArrowRight size={20} color="#004c8c" style={{ marginRight: "10px" }} /> taha.zuberi@ucalgary.ca
+          </a>
+        </div>
+      </div>
 
       {showImageModal && (
         <div className="modal" onClick={() => setShowImageModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, animation: "fadeIn 0.3s ease-in-out" }}>
