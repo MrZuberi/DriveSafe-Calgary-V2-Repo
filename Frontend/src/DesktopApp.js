@@ -12,10 +12,6 @@ const CALGARY_CENTER = [-114.0719, 51.0447];
 
 const font = "'Nunito', sans-serif";
 
-// The Esri Satellite Style URL
-const ESRI_SATELLITE_STYLE = "https://tiles.arcgis.com/tiles/xxxx/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"; 
-const ESRI_OFFICIAL_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"; 
-
 // --- COOLICONS VECTOR SVGs ---
 const IconMapPin = ({ size = 20, color = "currentColor", style = {} }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
