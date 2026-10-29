@@ -12,7 +12,7 @@ const CALGARY_CENTER = [-114.0719, 51.0447];
 
 const font = "'Nunito', sans-serif";
 
-// --- COOLICONS VECTOR SVGs ---
+// icon components used across the page
 const IconMapPin = ({ size = 20, color = "currentColor", style = {} }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
     <path d="M12 21C12 21 19 15.5 19 10C19 6.13401 15.866 3 12 3C8.13401 3 5 6.13401 5 10C5 15.5 12 21 12 21Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -52,13 +52,12 @@ const IconMinus = ({ size = 24, color = "currentColor" }) => (
   </svg>
 );
 
-// -----------------------------
-
-// Start downloading + decoding the background image immediately so it is ready before the List page opens
+// starts loading the background image early so it's ready for the list page
 const preloadBg = new Image();
 preloadBg.src = image1;
 if (preloadBg.decode) preloadBg.decode().catch(() => {});
 
+// falls back to "No Details" for empty or placeholder values
 function orNA(value) {
   if (value === null || value === undefined) return "No Details";
   const s = String(value).trim();
@@ -66,6 +65,7 @@ function orNA(value) {
   return s;
 }
 
+// formats a timestamp as a short local time
 function formatTime(value) {
   if (!value) return "No Details";
   const d = new Date(value);
@@ -73,6 +73,7 @@ function formatTime(value) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+// formats a timestamp as a full local date and time
 function formatDateTime(value) {
   if (!value) return "No Details";
   const d = new Date(value);
@@ -80,6 +81,7 @@ function formatDateTime(value) {
   return d.toLocaleString();
 }
 
+// turns a timestamp into a short "Xm/Xh/Xd" relative label
 function timeAgoShort(value) {
   if (!value) return "";
   const d = new Date(value);
@@ -92,6 +94,7 @@ function timeAgoShort(value) {
   return `${Math.round(hrs / 24)}d`;
 }
 
+// keeps only incidents from the last 7 days
 function isWithinLastWeek(value) {
   if (!value) return true;
   const d = new Date(value);
@@ -99,6 +102,7 @@ function isWithinLastWeek(value) {
   return Date.now() - d.getTime() <= 7 * 24 * 60 * 60 * 1000;
 }
 
+// checks whether a timestamp falls on today's date
 function isToday(value) {
   if (!value) return false;
   const d = new Date(value);
@@ -107,6 +111,7 @@ function isToday(value) {
   return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
 }
 
+// splits an incident description into labeled paragraphs
 function FormattedDescription({ text }) {
   const safeText = orNA(text);
   if (safeText === "No Details") return <span>No Details</span>;
@@ -139,6 +144,7 @@ function FormattedDescription({ text }) {
   );
 }
 
+// the 3d map, its markers, and the fly-to/reset animations
 function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -149,10 +155,10 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    // Using the ESRI Official Satellite Style URL
+    // creates the map, starting on the voyager style as a fallback
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json", // Fallback, but we will try to use the satellite style
+      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
       center: CALGARY_CENTER,
       zoom: 10.0, 
       pitch: 45, 
@@ -164,12 +170,11 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
       onMapLoad(m);
     }
 
-    // Attempt to set the satellite style (this is the public Esri World Imagery style)
+    // tries to switch to the satellite imagery style once loaded
     m.on("load", () => {
       m.resize();
       m.setStyle("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
       
-      // 3D buildings commented out because satellite imagery looks better flat
       /*
       if (!m.getLayer("3d-buildings")) {
         try {
@@ -205,6 +210,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // redraws a red pin marker for every incident
   useEffect(() => {
     if (!map.current) return;
     markers.current.forEach((mk) => mk.remove());
@@ -212,7 +218,6 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
 
     incidents.forEach((incident) => {
       if (!incident.coordinates) return;
-      // Custom Red Teardrop Marker
       const el = document.createElement("div");
       el.innerHTML = `
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="cursor: pointer; filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.5));">
@@ -229,10 +234,10 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
     });
   }, [incidents]);
 
+  // flies the camera to the selected incident
   useEffect(() => {
     if (map.current && selectedIncident?.coordinates) {
       map.current.stop(); 
-      // Smooth Fly To animation
       map.current.flyTo({
         center: [selectedIncident.coordinates.lon, selectedIncident.coordinates.lat],
         zoom: 15, 
@@ -245,10 +250,10 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
     }
   }, [selectedIncident]);
 
+  // flies back out to the calgary overview on reset
   useEffect(() => {
     const handleZoomOut = () => {
       if (map.current) {
-        // Smooth Fly Out animation
         map.current.flyTo({ 
           center: CALGARY_CENTER,
           zoom: 10.0, 
@@ -271,6 +276,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad }) {
   );
 }
 
+// the main desktop screen: map, list, search, and incident details
 function App() {
   const [activePage, setActivePage] = useState("map"); 
   const [incidents, setIncidents] = useState([]);
@@ -287,10 +293,11 @@ function App() {
   const mapRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState(null); // null = not searching
+  const [searchResults, setSearchResults] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
 
+  // pulls the latest incidents from the backend
   function loadIncidents() {
     axios.get(`${API_BASE_URL}/api/incidents?limit=100`).then(res => {
       if (res.data?.items) {
@@ -303,9 +310,10 @@ function App() {
     }).catch(() => setIsLoading(false));
   }
 
+  // loads incidents on mount and refreshes every 30 seconds
   useEffect(() => { loadIncidents(); const t = setInterval(loadIncidents, 30000); return () => clearInterval(t); }, []);
 
-  // Fuzzy search (Elasticsearch on the backend) - waits a moment after typing stops
+  // runs a fuzzy search a moment after typing stops
   useEffect(() => {
     const q = searchQuery.trim();
     if (q.length < 2) { setSearchResults(null); return; }
@@ -323,6 +331,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
+  // opens the map on an incident and loads its nearby cameras
   function handleSelectIncident(incident) {
     setSelectedIncident(incident);
     setActiveCameraIndex(0);
@@ -346,13 +355,14 @@ function App() {
     }
   }
 
+  // clears the selected incident and zooms back out
   function handleExit() {
     setSelectedIncident(null);
     setNearestCameras([]);
     window.dispatchEvent(new Event('zoomOutFromIncident'));
   }
 
-  // Opens the default mail app; if nothing opens (no mail app set up), falls back to Gmail compose in a new tab
+  // opens the mail app, falling back to gmail in a new tab
   function openEmail(e) {
     e.preventDefault();
     const to = "taha.zuberi@ucalgary.ca";
@@ -366,11 +376,11 @@ function App() {
     }, 900);
   }
 
-  // the map (and the latest incidents panel on it) only shows incidents from today
+  // only today's incidents go on the map and the latest-incidents panel
   const todayIncidents = incidents.filter(i => isToday(i.start_dt));
   const recentIncidents = todayIncidents.slice(0, 5);
 
-  // when searching, keep the search relevance order; otherwise newest first
+  // search results keep relevance order; otherwise newest first
   const isSearching = searchResults !== null;
   let processedList = isSearching ? searchResults.filter(i => isWithinLastWeek(i.start_dt)) : [...incidents];
   if (!isSearching) {
@@ -383,7 +393,7 @@ function App() {
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '1.5rem', fontFamily: font, fontWeight: 800 }}>Loading traffic data....</div>;
 
-  // Map Controls
+  // flattens the map's pitch and bearing back to a top-down view
   const handleMake2D = () => {
     if (mapRef.current) {
       mapRef.current.stop(); 
@@ -391,6 +401,7 @@ function App() {
     }
   };
 
+  // clears the selection and eases the map back to the city view
   const handleResetView = () => {
     handleExit();
     if (mapRef.current) {
@@ -433,7 +444,7 @@ function App() {
   return (
     <div style={{ height: "100vh", width: "100vw", overflow: "hidden", position: "relative", fontFamily: font }}>
       
-      {/* MAP STAYS MOUNTED (just hidden) SO SWITCHING PAGES IS SMOOTH */}
+      {/* map stays mounted (just hidden) so switching pages is smooth */}
       <div style={{ 
         position: "absolute", 
         inset: 0, 
@@ -451,7 +462,7 @@ function App() {
         />
       </div>
 
-      {/* BOTTOM LEFT MAP CONTROLS */}
+      {/* bottom left map controls */}
       {activePage === "map" && (
         <div style={{ position: "absolute", bottom: "30px", left: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
           <button onClick={handleMake2D} style={btnStyle} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}>Make 2D</button>
@@ -459,7 +470,7 @@ function App() {
         </div>
       )}
 
-      {/* BOTTOM RIGHT ZOOM CONTROLS */}
+      {/* bottom right zoom controls */}
       {activePage === "map" && (
         <div style={{ position: "absolute", bottom: "30px", right: "30px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 10 }}>
           <button onClick={() => mapRef.current?.zoomIn()} style={zoomBtnStyle} onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}><IconPlus size={20} color="#222" /></button>
@@ -467,10 +478,10 @@ function App() {
         </div>
       )}
 
-      {/* BLURRED BACKGROUND - always mounted so the image is decoded once (oversized so the blur has no faded border) */}
+      {/* blurred background, kept mounted so the image stays decoded */}
       <div style={{ position: "absolute", inset: "-40px", zIndex: 1, backgroundImage: `url(${image1})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(4px)", transform: "translateZ(0)", willChange: "opacity", opacity: activePage === "list" ? 1 : 0, pointerEvents: "none", transition: "opacity 0.3s ease-in-out" }}></div>
 
-      {/* LIST PAGE */}
+      {/* list page */}
       {activePage === "list" && (
         <div style={{ 
           position: "absolute", 
@@ -539,6 +550,7 @@ function App() {
                       </div>
                       
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        {/* map-pin button only shows for today's incidents */}
                         {isToday(incident.start_dt) && (
                         <div 
                           onClick={(e) => {
@@ -565,6 +577,7 @@ function App() {
                         </div>
                         )}
 
+                        {/* red for today's incidents, yellow for older ones */}
                         <div style={{
                           width: "36px",
                           height: "36px",
@@ -732,7 +745,7 @@ function App() {
         </>
       )}
 
-      {/* ABOUT POPUP (opened from the i in the title card) */}
+      {/* about popup, opened from the "i" button in the title card */}
       <div onClick={() => setShowAbout(false)} style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", opacity: showAbout ? 1 : 0, visibility: showAbout ? "visible" : "hidden", transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", background: "white", borderRadius: "24px", padding: "40px", maxWidth: "700px", width: "100%", maxHeight: "90vh", overflowY: "auto", border: "4px solid #222", boxShadow: "8px 8px 0px rgba(0,0,0,0.8)", transform: showAbout ? "scale(1) translateY(0)" : "scale(0.96) translateY(10px)", transition: "transform 0.3s ease-in-out" }}>
           <button onClick={() => setShowAbout(false)} style={{ ...closeBtnStyle, position: "absolute", top: "16px", right: "16px", fontSize: "1.4rem" }} onMouseEnter={(e) => e.currentTarget.style.color = "#ff0000"} onMouseLeave={(e) => e.currentTarget.style.color = "#d64545"}>✕</button>

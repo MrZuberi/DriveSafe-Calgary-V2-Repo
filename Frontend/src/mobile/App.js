@@ -7,7 +7,8 @@ const maplibregl = window.maplibregl;
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://drivesafecalgary-13a17c07f5d1.herokuapp.com";
 const CALGARY_CENTER = [-114.0719, 51.0447];
-const RESET_ZOOM = 9.4; // zoom used by the Reset View button (a bit further out than the default 10)
+// a bit further out than the default 10, so Reset View shows more of the city
+const RESET_ZOOM = 9.4;
 
 const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Nunito', system-ui, sans-serif";
 
@@ -38,7 +39,7 @@ const GLOBAL_CSS = `
   button { font-family: inherit; }
 `;
 
-// ---------- ICONS ----------
+// icon components used across the page
 const Svg = ({ size = 20, children, style }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>{children}</svg>
 );
@@ -81,7 +82,7 @@ const IconCar = ({ size = 18, color = "currentColor" }) => (
   </Svg>
 );
 
-// ---------- HELPERS ----------
+// falls back to "No Details" for empty or placeholder values
 function orNA(value) {
   if (value === null || value === undefined) return "No Details";
   const s = String(value).trim();
@@ -89,6 +90,7 @@ function orNA(value) {
   return s;
 }
 
+// formats a timestamp as a short local time
 function formatTime(value) {
   if (!value) return "No Details";
   const d = new Date(value);
@@ -96,6 +98,7 @@ function formatTime(value) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+// formats a timestamp as a full local date and time
 function formatDateTime(value) {
   if (!value) return "No Details";
   const d = new Date(value);
@@ -103,6 +106,7 @@ function formatDateTime(value) {
   return d.toLocaleString();
 }
 
+// turns a timestamp into a short "Xm ago/Xh ago/Xd ago" label
 function timeAgo(value) {
   if (!value) return "";
   const d = new Date(value);
@@ -115,6 +119,7 @@ function timeAgo(value) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
+// keeps only incidents from the last 7 days
 function isWithinLastWeek(value) {
   if (!value) return true;
   const d = new Date(value);
@@ -122,6 +127,7 @@ function isWithinLastWeek(value) {
   return Date.now() - d.getTime() <= 7 * 24 * 60 * 60 * 1000;
 }
 
+// checks whether a timestamp falls on today's date
 function isToday(value) {
   if (!value) return false;
   const d = new Date(value);
@@ -130,6 +136,7 @@ function isToday(value) {
   return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
 }
 
+// splits an incident description into labeled paragraphs
 function FormattedDescription({ text }) {
   const safeText = orNA(text);
   if (safeText === "No Details") return <span>No Details</span>;
@@ -156,6 +163,7 @@ function FormattedDescription({ text }) {
   );
 }
 
+// tracks the current window size for the responsive layout
 function useViewport() {
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
@@ -170,7 +178,7 @@ function useViewport() {
   return vp;
 }
 
-// ---------- MAP ----------
+// the 3d map, its markers, and the fly-to/reset animations
 function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddingRef }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -183,6 +191,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
+    // creates the map on the openfreemap bright style
     const m = new maplibregl.Map({
       container: mapContainer.current,
       style: "https://tiles.openfreemap.org/styles/bright",
@@ -195,6 +204,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
     map.current = m;
     if (onMapLoad) onMapLoad(m);
 
+    // adds the 3d buildings layer once the map and its style are ready
     m.on("load", () => {
       m.resize();
       if (!m.getLayer("3d-buildings")) {
@@ -228,7 +238,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Markers
+  // redraws a red pin marker for every incident and fits the map to them once
   useEffect(() => {
     if (!map.current) return;
     markers.current.forEach((mk) => mk.remove());
@@ -273,7 +283,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
     }
   }, [incidents]);
 
-  // Highlight selected marker
+  // scales up the marker of the currently selected incident
   useEffect(() => {
     Object.entries(markerEls.current).forEach(([id, el]) => {
       const svg = el.firstElementChild;
@@ -281,7 +291,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
     });
   }, [selectedIncident, incidents]);
 
-  // Fly to selected incident (offset so it sits above the sheet)
+  // flies to the selected incident, offset so it sits above the sheet
   useEffect(() => {
     if (map.current && selectedIncident?.coordinates) {
       map.current.stop();
@@ -299,6 +309,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIncident]);
 
+  // flies back out to the calgary overview on reset
   useEffect(() => {
     const handleZoomOut = (e) => {
       if (map.current) {
@@ -325,7 +336,7 @@ function Map3D({ incidents, selectedIncident, onSelectIncident, onMapLoad, paddi
   );
 }
 
-// ---------- BOTTOM SHEET (Apple Maps style) ----------
+// the draggable apple-maps-style bottom sheet
 const SNAPS = ["peek", "half", "full"];
 const PEEK_HEIGHT = 76;
 
@@ -337,10 +348,12 @@ function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, peekH = PEEK_HEIGHT
   const h = dragH !== null ? dragH : target;
   const clamp = (v) => Math.max(heights.peek, Math.min(heights.full, v));
 
+  // starts tracking a drag on the grab handle (ignored on wide layouts)
   const onDown = (e) => {
     if (wide) return;
     drag.current = { el: e.currentTarget, id: e.pointerId, y: e.clientY, h: target, ly: e.clientY, lt: e.timeStamp, v: 0, moved: false };
   };
+  // resizes the sheet while dragging and tracks velocity for the snap decision
   const onMove = (e) => {
     const s = drag.current;
     if (!s) return;
@@ -356,6 +369,7 @@ function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, peekH = PEEK_HEIGHT
     s.lt = e.timeStamp;
     setDragH(clamp(s.h + dy));
   };
+  // picks the nearest snap point (or follows a fast swipe) on release
   const onUp = (e) => {
     const s = drag.current;
     if (!s) return;
@@ -435,7 +449,7 @@ function BottomSheet({ snap, onSnap, vh, wide, grab, sticky, peekH = PEEK_HEIGHT
   );
 }
 
-// ---------- APP ----------
+// the main mobile screen: map, bottom sheet, search, and incident details
 function App() {
   const { w: vw, h: vh } = useViewport();
   const wide = vw >= 700;
@@ -448,7 +462,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("details");
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState(null); // null = not searching
+  const [searchResults, setSearchResults] = useState(null);
   const [snap, setSnap] = useState("peek");
   const [showAbout, setShowAbout] = useState(false);
   const [is3D, setIs3D] = useState(true);
@@ -457,10 +471,12 @@ function App() {
   const mapRef = useRef(null);
   const paddingRef = useRef({ top: 0, bottom: 0, left: 0, right: 0 });
 
+  // keeps the map's fly-to padding in sync with the sheet/side-panel size
   paddingRef.current = wide
     ? { top: 0, bottom: 0, left: 392, right: 0 }
     : { top: 90, bottom: Math.round(vh * 0.52), left: 0, right: 0 };
 
+  // pulls the latest incidents from the backend
   function loadIncidents() {
     axios.get(`${API_BASE_URL}/api/incidents?limit=500`).then(res => {
       if (res.data?.items) {
@@ -471,9 +487,10 @@ function App() {
     }).catch(() => setIsLoading(false));
   }
 
+  // loads incidents on mount and refreshes every 30 seconds
   useEffect(() => { loadIncidents(); const t = setInterval(loadIncidents, 30000); return () => clearInterval(t); }, []);
 
-  // Fuzzy search (Elasticsearch on the backend) - waits a moment after typing stops
+  // runs a fuzzy search a moment after typing stops
   useEffect(() => {
     const q = searchQuery.trim();
     if (q.length < 2) { setSearchResults(null); return; }
@@ -491,6 +508,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
+  // opens the sheet on an incident and loads its nearby cameras
   function handleSelectIncident(incident) {
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     setSelectedIncident(incident);
@@ -513,6 +531,7 @@ function App() {
     }
   }
 
+  // clears the selected incident and zooms back out
   function handleExit() {
     setSelectedIncident(null);
     setNearestCameras([]);
@@ -520,6 +539,7 @@ function App() {
     window.dispatchEvent(new Event("zoomOutFromIncident"));
   }
 
+  // flips the map between the tilted 3d view and flat 2d
   const handleToggle3D = () => {
     const m = mapRef.current;
     if (!m) return;
@@ -533,6 +553,7 @@ function App() {
     }
   };
 
+  // clears the selection and zooms out further than the default view
   const handleReset = () => {
     setSelectedIncident(null);
     setNearestCameras([]);
@@ -540,10 +561,10 @@ function App() {
     window.dispatchEvent(new CustomEvent("zoomOutFromIncident", { detail: { zoom: RESET_ZOOM } }));
   };
 
-  // the map only shows incidents from today
+  // only today's incidents go on the map
   const todayIncidents = incidents.filter(i => isToday(i.start_dt));
 
-  // when searching, keep the search relevance order; otherwise newest first
+  // search results keep relevance order; otherwise newest first
   const isSearching = searchResults !== null;
   let processedList = isSearching ? searchResults.filter(i => isWithinLastWeek(i.start_dt)) : [...incidents];
   if (!isSearching) processedList.sort((a, b) => new Date(b.start_dt || 0) - new Date(a.start_dt || 0));
@@ -558,12 +579,13 @@ function App() {
     );
   }
 
-  // ----- shared small pieces -----
+  // shared small style/button pieces
   const roundBtn = {
     width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
     background: "transparent", border: "none", color: COLORS.blue, cursor: "pointer", padding: 0,
   };
 
+  // renders one segmented-control tab button
   const segBtn = (key, label) => (
     <button
       onClick={() => setActiveTab(key)}
@@ -581,7 +603,7 @@ function App() {
 
   const inDetails = !!selectedIncident;
 
-  // ----- sheet header content -----
+  // sheet header content: incident title when in details, title + search otherwise
   const grabContent = inDetails ? (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "4px 16px 10px 16px" }}>
       <div style={{ minWidth: 0 }}>
@@ -635,6 +657,7 @@ function App() {
     </div>
   );
 
+  // sticky sheet content below the header: the details/cameras tab switch
   const stickyContent = inDetails ? (
     <div style={{ padding: "0 16px 10px 16px" }}>
       <div style={{ display: "flex", background: COLORS.fill, borderRadius: 10, padding: 2 }}>
@@ -644,7 +667,7 @@ function App() {
     </div>
   ) : null;
 
-  // ----- sheet body -----
+  // renders one label/value row inside a details card
   const infoRow = (label, value, last) => (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "12px 14px", borderBottom: last ? "none" : `1px solid ${COLORS.line}` }}>
       <span style={{ fontSize: 15, color: COLORS.sub, fontWeight: 500, flexShrink: 0 }}>{label}</span>
@@ -654,6 +677,7 @@ function App() {
 
   const groupCard = { background: "rgba(255,255,255,0.9)", borderRadius: 14, border: `1px solid ${COLORS.line}`, overflow: "hidden" };
 
+  // the incident list: today's rows go to the map, older rows expand in place
   const listBody = (
     <div>
       {processedList.map((inc, i) => {
@@ -685,6 +709,7 @@ function App() {
             </div>
           </div>
         </div>
+        {/* older incidents expand in place instead of opening the map */}
         {!onMap && isOpen && (
           <div style={{ padding: "0 16px 14px 16px", animation: "ds-fade 0.3s ease" }}>
             <div style={groupCard}>
@@ -707,6 +732,7 @@ function App() {
     </div>
   );
 
+  // the details tab for the selected incident
   const detailsBody = selectedIncident && (
     <div style={{ padding: "4px 16px 0 16px", animation: "ds-fade 0.3s ease" }}>
       <div style={groupCard}>
@@ -723,6 +749,7 @@ function App() {
   );
 
   const cam = nearestCameras[activeCameraIndex];
+  // the cameras tab: current camera image plus prev/next navigation
   const camerasBody = selectedIncident && (
     <div style={{ padding: "4px 16px 0 16px", animation: "ds-fade 0.3s ease" }}>
       {isLoadingCameras ? (
@@ -778,7 +805,7 @@ function App() {
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", fontFamily: font, overscrollBehavior: "none", touchAction: "manipulation" }}>
       <style>{GLOBAL_CSS}</style>
 
-      {/* MAP */}
+      {/* map */}
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <Map3D
           incidents={todayIncidents}
@@ -789,7 +816,7 @@ function App() {
         />
       </div>
 
-      {/* TITLE (top left) */}
+      {/* title badge, top left */}
       <div
         style={{
           position: "absolute",
@@ -816,7 +843,7 @@ function App() {
         </div>
       </div>
 
-      {/* FLOATING MAP CONTROLS (top right, glass pill like Apple Maps) */}
+      {/* floating map controls, top right: about / 2d-3d toggle / reset */}
       <div
         style={{
           position: "absolute",
@@ -839,12 +866,12 @@ function App() {
         <button className="ds-row" onClick={handleReset} aria-label="Reset view" style={roundBtn}><IconReset size={18} /></button>
       </div>
 
-      {/* BOTTOM SHEET */}
+      {/* bottom sheet */}
       <BottomSheet snap={snap} onSnap={setSnap} vh={vh} wide={wide} grab={grabContent} sticky={stickyContent} peekH={inDetails ? PEEK_HEIGHT : 114}>
         {sheetBody}
       </BottomSheet>
 
-      {/* ABOUT OVERLAY */}
+      {/* about overlay */}
       <div
         onClick={() => setShowAbout(false)}
         style={{
