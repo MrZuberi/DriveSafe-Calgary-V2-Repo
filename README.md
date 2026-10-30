@@ -6,15 +6,9 @@
 ## What Is This Project?
 DriveSafe Calgary is a full-stack web app that shows what is happening on Calgary's roads right now. It pulls live traffic incident data from the City of Calgary's Open Data portal, cleans it, caches it, and shows it on an interactive 3D map next to a searchable list of the past week's incidents. Pick an incident and the app finds the closest traffic cameras so you can see the road for yourself.
 
-It is built as two separate apps:
-
-* **Backend** (Python / Flask) - a set of small modules that download, clean, cache and serve the data through a small JSON API, with `app.py` as the entry point. Hosted on **Heroku**.
-* **Frontend** (React) - a desktop UI and a separate mobile UI, each split into components, sharing config, API calls and date helpers, both talking to the backend. Hosted on **Vercel** with a custom domain.
-
 ## Features
 * **Live 3D Traffic Map** - MapLibre GL map with 3D buildings/tilt and clickable incident markers. The map only shows incidents from **today**.
 * **Weekly Traffic Incidents List** - every incident from the last **7 days**, newest first, under a "Weekly Traffic Incidents" title above the search bar.
-* **Incident Details** - time, quadrant, description and last-updated info for each incident.
 * **Nearby Traffic Cameras** - the closest camera feeds to the selected incident, with next/prev navigation.
 
 ## How It Works
@@ -29,9 +23,8 @@ It is built as two separate apps:
 * **React** 
 * **MapLibre GL JS** 
 * **Python Flask** 
-* **Requests** - downloads data from Calgary Open Data and talks to Elasticsearch
-* **Redis** - shared cache
-* **Elasticsearch** - fuzzy, typo-tolerant search
+* **Redis** 
+* **Elasticsearch** 
 
 ### Hosting
 * **Heroku** - Redis add-on, Elasticsearch (Bonsai) add-on
@@ -86,61 +79,6 @@ It is built as two separate apps:
                 ├── AboutOverlay.js
                 └── FormattedDescription.js, Icons.js
 ```
-
-### What Each File Does
-
-**Backend**
-
-| File | What it does |
-| --- | --- |
-| `app.py` | Creates the Flask app, sets up CORS (exposes `X-Cache` and `X-Response-Time-ms`), registers the routes blueprint, starts the incidents warmer thread, runs the dev server |
-| `settings.py` | Env vars (`CAMERAS_URL`, `INCIDENTS_URL`, `REDIS_URL`, `ELASTICSEARCH_URL`/`BONSAI_URL`), Calgary bounding box, cache durations, Redis keys, Elasticsearch index name |
-| `redis_cache.py` | Connects to Redis when `REDIS_URL` is set, plus `redis_get_json` / `redis_set_json` helpers |
-| `memory_cache.py` | In-memory camera and incident caches (the backup when Redis is off) and their expiry/update helpers |
-| `helpers.py` | Distance calculation, time conversion, and the "is this inside Calgary" check |
-| `cleaners.py` | `clean_camera_data` and `clean_incident_data`, which turn raw city records into the app's format |
-| `elastic.py` | Elasticsearch index setup, bulk indexing, and fuzzy search; owns the `es_ready` flag |
-| `cameras_service.py` | `get_cameras` (Redis → memory → city API) and `find_nearest_cameras` |
-| `incidents_service.py` | Fetches, cleans, filters, sorts and caches incidents, the 25-second background warmer, and the backup search |
-| `routes.py` | All `/api/...` routes as a Flask Blueprint, plus the response timing / cache headers |
-
-**Frontend**
-
-| File | What it does |
-| --- | --- |
-| `App.js` | Detects mobile vs desktop and lazy-loads `./DesktopApp` or `./mobile/App` |
-| `DesktopApp.js` | Desktop state (incidents, selection, cameras, search, page) and page layout |
-| `mobile/App.js` | Mobile state (incidents, selection, cameras, search, sheet snap, 2D/3D) and layout |
-| `shared/config.js` | Backend URL and the Calgary map center |
-| `shared/api.js` | Calls to `/api/incidents`, `/api/search` and `/api/nearest-cameras` |
-| `shared/format.js` | `orNA`, `formatTime`, `formatDateTime` |
-| `shared/dates.js` | `isWithinLastWeek` (list) and `isToday` (map) |
-| `desktop/styles.js` | Desktop font and shared button styles |
-| `desktop/components/*` | Map, map controls, weekly list + cards, latest incidents panel, camera/details cards, title card, MAP/LIST tabs, about and image modals |
-| `mobile/theme.js` | Mobile font, colors, glass style and global CSS |
-| `mobile/timeAgo.js` | "Xm ago" labels used by the sheet header and list rows |
-| `mobile/hooks/useViewport.js` | Window size, so the layout switches to the side panel at 700px+ |
-| `mobile/components/*` | Map, floating controls, title badge, draggable bottom sheet and its header/tabs/body, list rows, details/cameras tabs, about overlay |
-
-`FormattedDescription` and the icons live in each platform folder rather than `shared/` because the desktop and mobile versions are styled differently.
-
-### Build Order
-Each layer only imports from the layers above it, so this is the order to read or build the project in.
-
-**Backend**
-1. `settings.py`
-2. `helpers.py`, `redis_cache.py`
-3. `memory_cache.py`, `cleaners.py`, `elastic.py`
-4. `cameras_service.py`, `incidents_service.py`
-5. `routes.py`
-6. `app.py`
-
-**Frontend**
-1. `shared/` (`config.js` → `api.js`, `format.js`, `dates.js`)
-2. `desktop/styles.js`, `mobile/theme.js`, `mobile/timeAgo.js`, `mobile/hooks/useViewport.js`
-3. `desktop/components/`, `mobile/components/` (icons and small pieces first, then the cards, list, sheet and map)
-4. `DesktopApp.js`, `mobile/App.js`
-5. `App.js`
 
 ## How to Run the Application
 
