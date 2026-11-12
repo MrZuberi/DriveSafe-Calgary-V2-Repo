@@ -50,41 +50,42 @@ It is built as two separate apps:
 │   ├── cameras_service.py
 │   ├── incidents_service.py
 │   ├── routes.py
-│   ├── config.js, config.json  # the city API urls for reference (the app reads env vars)
+│   ├── config.ts, config.json  # the city API urls for reference (the app reads env vars)
 │   ├── requirements.txt
 │   └── Procfile                # gunicorn app:app
 └── Frontend/
     └── src/
-        ├── index.js
-        ├── App.js              # picks desktop or mobile and lazy-loads it
-        ├── DesktopApp.js       # desktop root (state + layout)
+        ├── index.tsx
+        ├── App.tsx             # picks desktop or mobile and lazy-loads it
+        ├── DesktopApp.tsx      # desktop root (state + layout)
         ├── App.css, mobiles.css
         ├── shared/
-        │   ├── config.js
-        │   ├── api.js
-        │   ├── format.js
-        │   └── dates.js
+        │   ├── config.ts
+        │   ├── api.ts
+        │   ├── format.ts
+        │   ├── types.ts
+        │   └── dates.ts
         ├── desktop/
-        │   ├── styles.js
+        │   ├── styles.ts
         │   └── components/
-        │       ├── Map3D.js, MapControls.js
-        │       ├── IncidentList.js, IncidentCard.js, LatestIncidents.js
-        │       ├── CameraCard.js, DetailsCard.js, ExitButton.js
-        │       ├── TitleCard.js, PageTabs.js, AboutModal.js, ImageModal.js
-        │       └── FormattedDescription.js, Icons.js
+        │       ├── Map3D.tsx, MapControls.tsx
+        │       ├── IncidentList.tsx, IncidentCard.tsx, LatestIncidents.tsx
+        │       ├── CameraCard.tsx, DetailsCard.tsx, ExitButton.tsx
+        │       ├── TitleCard.tsx, PageTabs.tsx, AboutModal.tsx, ImageModal.tsx
+        │       └── FormattedDescription.tsx, Icons.tsx
         └── mobile/
-            ├── App.js          # mobile root (state + layout)
+            ├── App.tsx         # mobile root (state + layout)
             ├── App.css
-            ├── theme.js
-            ├── timeAgo.js
+            ├── theme.ts
+            ├── timeAgo.ts
             ├── hooks/
-            │   └── useViewport.js
+            │   └── useViewport.ts
             └── components/
-                ├── Map3D.js, MapControls.js, TitleBadge.js
-                ├── BottomSheet.js, SheetHeader.js, TabSwitch.js, SheetBody.js
-                ├── IncidentRow.js, DetailsTab.js, CamerasTab.js, InfoRow.js
-                ├── AboutOverlay.js
-                └── FormattedDescription.js, Icons.js
+                ├── Map3D.tsx, MapControls.tsx, TitleBadge.tsx
+                ├── BottomSheet.tsx, SheetHeader.tsx, TabSwitch.tsx, SheetBody.tsx
+                ├── IncidentRow.tsx, DetailsTab.tsx, CamerasTab.tsx, InfoRow.tsx
+                ├── AboutOverlay.tsx
+                └── FormattedDescription.tsx, Icons.tsx
 ```
 
 ### What Each File Does
@@ -108,18 +109,19 @@ It is built as two separate apps:
 
 | File | What it does |
 | --- | --- |
-| `App.js` | Detects mobile vs desktop and lazy-loads `./DesktopApp` or `./mobile/App` |
-| `DesktopApp.js` | Desktop state (incidents, selection, cameras, search, page) and page layout |
-| `mobile/App.js` | Mobile state (incidents, selection, cameras, search, sheet snap, 2D/3D) and layout |
-| `shared/config.js` | Backend URL and the Calgary map center |
-| `shared/api.js` | Calls to `/api/incidents`, `/api/search` and `/api/nearest-cameras` |
-| `shared/format.js` | `orNA`, `formatTime`, `formatDateTime` |
-| `shared/dates.js` | `isWithinLastWeek` (list) and `isToday` (map) |
-| `desktop/styles.js` | Desktop font and shared button styles |
+| `App.tsx` | Detects mobile vs desktop and lazy-loads `./DesktopApp` or `./mobile/App` |
+| `DesktopApp.tsx` | Desktop state (incidents, selection, cameras, search, page) and page layout |
+| `mobile/App.tsx` | Mobile state (incidents, selection, cameras, search, sheet snap, 2D/3D) and layout |
+| `shared/config.ts` | Backend URL and the Calgary map center |
+| `shared/api.ts` | Calls to `/api/incidents`, `/api/search` and `/api/nearest-cameras` |
+| `shared/format.ts` | `orNA`, `formatTime`, `formatDateTime` |
+| `shared/dates.ts` | `isWithinLastWeek` (list) and `isToday` (map) |
+| `shared/types.ts` | `Incident`, `Camera` and API response types matching `Backend/cleaners.py` |
+| `desktop/styles.ts` | Desktop font and shared button styles |
 | `desktop/components/*` | Map, map controls, weekly list + cards, latest incidents panel, camera/details cards, title card, MAP/LIST tabs, about and image modals |
-| `mobile/theme.js` | Mobile font, colors, glass style and global CSS |
-| `mobile/timeAgo.js` | "Xm ago" labels used by the sheet header and list rows |
-| `mobile/hooks/useViewport.js` | Window size, so the layout switches to the side panel at 700px+ |
+| `mobile/theme.ts` | Mobile font, colors, glass style and global CSS |
+| `mobile/timeAgo.ts` | "Xm ago" labels used by the sheet header and list rows |
+| `mobile/hooks/useViewport.ts` | Window size, so the layout switches to the side panel at 700px+ |
 | `mobile/components/*` | Map, floating controls, title badge, draggable bottom sheet and its header/tabs/body, list rows, details/cameras tabs, about overlay |
 
 `FormattedDescription` and the icons live in each platform folder rather than `shared/` because the desktop and mobile versions are styled differently.
@@ -136,11 +138,11 @@ Each layer only imports from the layers above it, so this is the order to read o
 6. `app.py`
 
 **Frontend**
-1. `shared/` (`config.js` → `api.js`, `format.js`, `dates.js`)
-2. `desktop/styles.js`, `mobile/theme.js`, `mobile/timeAgo.js`, `mobile/hooks/useViewport.js`
+1. `shared/` (`types.ts`, `config.ts` → `api.ts`, `format.ts`, `dates.ts`)
+2. `desktop/styles.ts`, `mobile/theme.ts`, `mobile/timeAgo.ts`, `mobile/hooks/useViewport.ts`
 3. `desktop/components/`, `mobile/components/` (icons and small pieces first, then the cards, list, sheet and map)
-4. `DesktopApp.js`, `mobile/App.js`
-5. `App.js`
+4. `DesktopApp.tsx`, `mobile/App.tsx`
+5. `App.tsx`
 
 ## How to Run the Application
 
