@@ -43,41 +43,42 @@ DriveSafe Calgary is a full-stack web app that shows what is happening on Calgar
 │   ├── cameras_service.py
 │   ├── incidents_service.py
 │   ├── routes.py
-│   ├── config.js, config.json  # the city API urls for reference (the app reads env vars)
+│   ├── config.ts, config.json  # the city API urls for reference (the app reads env vars)
 │   ├── requirements.txt
 │   └── Procfile                # gunicorn app:app
 └── Frontend/
     └── src/
-        ├── index.js
-        ├── App.js              # picks desktop or mobile and lazy-loads it
-        ├── DesktopApp.js       # desktop root (state + layout)
+        ├── index.tsx
+        ├── App.tsx             # picks desktop or mobile and lazy-loads it
+        ├── DesktopApp.tsx      # desktop root (state + layout)
         ├── App.css, mobiles.css
         ├── shared/
-        │   ├── config.js
-        │   ├── api.js
-        │   ├── format.js
-        │   └── dates.js
+        │   ├── config.ts
+        │   ├── api.ts
+        │   ├── format.ts
+        │   ├── types.ts
+        │   └── dates.ts
         ├── desktop/
-        │   ├── styles.js
+        │   ├── styles.ts
         │   └── components/
-        │       ├── Map3D.js, MapControls.js
-        │       ├── IncidentList.js, IncidentCard.js, LatestIncidents.js
-        │       ├── CameraCard.js, DetailsCard.js, ExitButton.js
-        │       ├── TitleCard.js, PageTabs.js, AboutModal.js, ImageModal.js
-        │       └── FormattedDescription.js, Icons.js
+        │       ├── Map3D.tsx, MapControls.tsx
+        │       ├── IncidentList.tsx, IncidentCard.tsx, LatestIncidents.tsx
+        │       ├── CameraCard.tsx, DetailsCard.tsx, ExitButton.tsx
+        │       ├── TitleCard.tsx, PageTabs.tsx, AboutModal.tsx, ImageModal.tsx
+        │       └── FormattedDescription.tsx, Icons.tsx
         └── mobile/
-            ├── App.js          # mobile root (state + layout)
+            ├── App.tsx         # mobile root (state + layout)
             ├── App.css
-            ├── theme.js
-            ├── timeAgo.js
+            ├── theme.ts
+            ├── timeAgo.ts
             ├── hooks/
-            │   └── useViewport.js
+            │   └── useViewport.ts
             └── components/
-                ├── Map3D.js, MapControls.js, TitleBadge.js
-                ├── BottomSheet.js, SheetHeader.js, TabSwitch.js, SheetBody.js
-                ├── IncidentRow.js, DetailsTab.js, CamerasTab.js, InfoRow.js
-                ├── AboutOverlay.js
-                └── FormattedDescription.js, Icons.js
+                ├── Map3D.tsx, MapControls.tsx, TitleBadge.tsx
+                ├── BottomSheet.tsx, SheetHeader.tsx, TabSwitch.tsx, SheetBody.tsx
+                ├── IncidentRow.tsx, DetailsTab.tsx, CamerasTab.tsx, InfoRow.tsx
+                ├── AboutOverlay.tsx
+                └── FormattedDescription.tsx, Icons.tsx
 ```
 
 ## How to Run the Application
